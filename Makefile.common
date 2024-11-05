@@ -1,0 +1,34 @@
+
+TOOL_PREFIX := x86_64-linux-gnu-
+
+CC := ${TOOL_PREFIX}gcc
+# -m32 之前下载了gcc-i686-linux-gnu,这个工具是gcc的一部分，下载了这个，gcc就能用-m32编译32位程序
+#但是qemu用的是I386,intel的兼容性很好，用i686编译的程序可以在较低版本的i386上运行，但是i386不能在i686上运行
+#-fno，禁止了一一堆东西，反正就是让程序尽可能的小。
+CFLAGS := -g -c -O0 -m32 -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables
+
+#汇编器配置
+AS = ${TOOL_PREFIX}as
+ASFLAGS := -g -m32
+
+#连接器
+LD := ${TOOL_PREFIX}ld
+
+
+
+#其他工具
+OBJCOPY_TOOL := ${TOOL_PREFIX}objcopy
+OBJDUMP_TOOL := ${TOOL_PREFIX}objdump
+READELF_TOOL := ${TOOL_PREFIX}readelf
+
+
+
+
+
+
+
+
+
+
+
+

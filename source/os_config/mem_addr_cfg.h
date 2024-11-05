@@ -1,0 +1,11 @@
+#ifndef __MEM_ADDR_CFG_H
+#define __MEM_ADDR_CFG_H
+
+#define BOOTLOADER_SEG 0x0
+
+#define BOOT_START_ADDR_REL  0x7c00
+#define LOAD_START_ADDR_REL  0x8000 
+
+#define STACK_KERNEL_TOP_ADDR   0x7000
+
+#endif
