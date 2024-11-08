@@ -2,8 +2,8 @@ include ../../Makefile.common
 
 # 手动配置项
 PROJECT := kernel
-INCLUDE := ../os_config  
-SRCDIR := 
+INCLUDE := ../os_config  ../lib ./dev ../tools ./
+SRCDIR := ../tools ../lib
 LIBDIR := 
 
 # 查找库文件并生成链接选项

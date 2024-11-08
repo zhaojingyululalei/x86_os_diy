@@ -56,4 +56,27 @@ static inline void write_cr4(uint32_t v) {
     __asm__ __volatile__("mov %[v], %%cr4"::[v]"r"(v));
 }
 
+static inline void hlt(void) {
+    __asm__ __volatile__("hlt");
+}
+
+static inline uint32_t read_eflags (void) {
+    uint32_t eflags;
+
+    __asm__ __volatile__("pushfl\n\tpopl %%eax":"=a"(eflags));
+    return eflags;
+}
+
+static inline void write_eflags (uint32_t eflags) {
+    __asm__ __volatile__("pushl %%eax\n\tpopfl"::"a"(eflags));
+}
+
+static inline void cli() {
+	__asm__ __volatile__("cli");
+}
+
+static inline void sti() {
+	__asm__ __volatile__("sti");
+}
+
 #endif

@@ -7,7 +7,14 @@
 	"settings": {
 		"files.associations": {
 			"loader.h": "c",
-			"boot_info.h": "c"
+			"boot_info.h": "c",
+			"serial.h": "c",
+			"cpu.h": "c",
+			"debug.h": "c",
+			"cpu_instr.h": "c",
+			"types.h": "c",
+			"time.h": "c",
+			"rtc.h": "c"
 		}
 	}
 }
