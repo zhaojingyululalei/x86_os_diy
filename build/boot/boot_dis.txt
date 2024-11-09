@@ -1,0 +1,203 @@
+
+boot.elf：     文件格式 elf32-i386
+boot.elf
+体系结构：i386， 标志 0x00000112：
+EXEC_P, HAS_SYMS, D_PAGED
+起始地址 0x00007c05
+
+程序头：
+    LOAD off    0x00000000 vaddr 0x00007000 paddr 0x00006000 align 2**12
+         filesz 0x00000074 memsz 0x00000074 flags r--
+    LOAD off    0x00000c00 vaddr 0x00007c00 paddr 0x00007c00 align 2**12
+         filesz 0x00000200 memsz 0x00000200 flags r-x
+
+节：
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         00000200  00007c00  00007c00  00000c00  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .debug_aranges 00000020  00000000  00000000  00000e00  2**3
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+  2 .debug_info   00000025  00000000  00000000  00000e20  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+  3 .debug_abbrev 00000014  00000000  00000000  00000e45  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+  4 .debug_line   0000006c  00000000  00000000  00000e59  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+  5 .debug_str    00000056  00000000  00000000  00000ec5  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+  6 .debug_line_str 0000004a  00000000  00000000  00000f1b  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+SYMBOL TABLE:
+00000000 l    df *ABS*	00000000 boot.o
+00007c5f l       .text	00000000 hello_msg
+00007c3e l       .text	00000000 read_loader
+00007c26 l       .text	00000000 print_loop
+00007c3d l       .text	00000000 print_done
+00007c33 l       .text	00000000 print_newline
+00007c5a l       .text	00000000 jmp_to_loader
+00007c72 l       .text	00000000 read_disk_fault_msg
+00007c22 g       .text	00000000 print
+00007c05 g       .text	00000000 _start
+00008000 g       .text	00000000 __bss_start
+00008000 g       .text	00000000 _edata
+00008000 g       .text	00000000 _end
+
+
+
+Disassembly of section .text:
+
+00007c00 <_start-0x5>:
+  	# 16位代码，务必加上
+  	.code16
+#include "mem_addr_cfg.h"
+ 	.section .text
+	.global _start,print
+	ljmp $BOOTLOADER_SEG,$_start
+    7c00:	ea 05 7c 00 00       	ljmp   $0x0,$0x7c05
+
+00007c05 <_start>:
+_start:
+
+# 重置数据段寄存器
+	mov $BOOTLOADER_SEG, %ax
+    7c05:	b8 00 00             	mov    $0x0,%ax
+	mov %ax, %ds
+    7c08:	8e d8                	mov    %ax,%ds
+	mov %ax, %ss
+    7c0a:	8e d0                	mov    %ax,%ss
+	mov %ax, %es
+    7c0c:	8e c0                	mov    %ax,%es
+	mov %ax, %fs
+    7c0e:	8e e0                	mov    %ax,%fs
+	mov %ax, %gs
+    7c10:	8e e8                	mov    %ax,%gs
+
+	mov $STACK_KERNEL_TOP_ADDR,%sp
+    7c12:	bc 00 70             	mov    $0x7000,%sp
+
+	
+
+# 设置屏幕模式为文本模式，清除屏幕
+    mov $3,%ax
+    7c15:	b8 03 00             	mov    $0x3,%ax
+    int $0x10
+    7c18:	cd 10                	int    $0x10
+# 显示一个字符茶串
+	mov     $hello_msg,%si
+    7c1a:	be 5f 7c             	mov    $0x7c5f,%si
+    call    print
+    7c1d:	e8 02 00             	call   7c22 <print>
+	jmp read_loader
+    7c20:	eb 1c                	jmp    7c3e <read_loader>
+
+00007c22 <print>:
+
+print:
+    mov $0x0e, %ah       # BIOS: 0x10 中断，0x0E 功能号（TTY 输出）
+    7c22:	b4 0e                	mov    $0xe,%ah
+    mov $0x01, %bl       # 字符颜色（默认亮白）
+    7c24:	b3 01                	mov    $0x1,%bl
+
+00007c26 <print_loop>:
+
+print_loop:
+    lodsb                # 加载 (%SI) 到 AL，SI 自动增加
+    7c26:	ac                   	lods   %ds:(%si),%al
+    cmp $0, %al          # 判断是否到字符串末尾
+    7c27:	3c 00                	cmp    $0x0,%al
+    jz print_done        # 如果 AL == 0，则结束打印
+    7c29:	74 12                	je     7c3d <print_done>
+
+    cmp $'\n', %al       # 检测换行符 '\n'
+    7c2b:	3c 0a                	cmp    $0xa,%al
+    je print_newline     # 如果是换行符，跳转处理
+    7c2d:	74 04                	je     7c33 <print_newline>
+
+    int $0x10            # 通过 BIOS 中断打印字符
+    7c2f:	cd 10                	int    $0x10
+    jmp print_loop       # 打印下一个字符
+    7c31:	eb f3                	jmp    7c26 <print_loop>
+
+00007c33 <print_newline>:
+
+print_newline:
+    mov $'\r', %al       # 回车 '\r'
+    7c33:	b0 0d                	mov    $0xd,%al
+    int $0x10            # 打印回车符
+    7c35:	cd 10                	int    $0x10
+    mov $'\n', %al       # 换行 '\n'
+    7c37:	b0 0a                	mov    $0xa,%al
+    int $0x10            # 打印换行符
+    7c39:	cd 10                	int    $0x10
+    jmp print_loop       # 继续打印下一个字符
+    7c3b:	eb e9                	jmp    7c26 <print_loop>
+
+00007c3d <print_done>:
+
+print_done:
+    ret
+    7c3d:	c3                   	ret    
+
+00007c3e <read_loader>:
+
+
+read_loader:
+	mov $LOAD_START_ADDR_REL, %bx	# 读取到的内存地址
+    7c3e:	bb 00 80             	mov    $0x8000,%bx
+	mov $0x2, %cx		# ch:磁道号，cl起始扇区号
+    7c41:	b9 02 00             	mov    $0x2,%cx
+	mov $0x2, %ah		# ah: 0x2读磁盘命令
+    7c44:	b4 02                	mov    $0x2,%ah
+	mov $64, %al		# al: 读取的扇区数量, 必须小于128，暂设置成32KB
+    7c46:	b0 40                	mov    $0x40,%al
+	mov $0x0080, %dx	# dh: 磁头号，dl驱动器号0x80(磁盘1)
+    7c48:	ba 80 00             	mov    $0x80,%dx
+	int $0x13
+    7c4b:	cd 13                	int    $0x13
+	cmp $0,%ah
+    7c4d:	80 fc 00             	cmp    $0x0,%ah
+	jz jmp_to_loader
+    7c50:	74 08                	je     7c5a <jmp_to_loader>
+
+	//显示一个字符茶串
+	mov     $read_disk_fault_msg,%si
+    7c52:	be 72 7c             	mov    $0x7c72,%si
+    call    print
+    7c55:	e8 ca ff             	call   7c22 <print>
+
+	// 原地跳转
+	jmp .
+    7c58:	eb fe                	jmp    7c58 <read_loader+0x1a>
+
+00007c5a <jmp_to_loader>:
+
+	
+jmp_to_loader:
+	mov $LOAD_START_ADDR_REL,%bx
+    7c5a:	bb 00 80             	mov    $0x8000,%bx
+	jmp *%bx
+    7c5d:	ff e3                	jmp    *%bx
+
+00007c5f <hello_msg>:
+    7c5f:	68 65 6c             	push   $0x6c65
+    7c62:	6c                   	insb   (%dx),%es:(%di)
+    7c63:	6f                   	outsw  %ds:(%si),(%dx)
+    7c64:	20 7a 68             	and    %bh,0x68(%bp,%si)
+    7c67:	61                   	popa   
+    7c68:	6f                   	outsw  %ds:(%si),(%dx)
+    7c69:	20 6f 73             	and    %ch,0x73(%bx)
+    7c6c:	20 2e 2e 2e          	and    %ch,0x2e2e
+    7c70:	0a 00                	or     (%bx,%si),%al
+
+00007c72 <read_disk_fault_msg>:
+    7c72:	72 65                	jb     7cd9 <read_disk_fault_msg+0x67>
+    7c74:	61                   	popa   
+    7c75:	64 20 64 69          	and    %ah,%fs:0x69(%si)
+    7c79:	73 6b                	jae    7ce6 <read_disk_fault_msg+0x74>
+    7c7b:	20 66 61             	and    %ah,0x61(%bp)
+    7c7e:	75 6c                	jne    7cec <read_disk_fault_msg+0x7a>
+    7c80:	74 20                	je     7ca2 <read_disk_fault_msg+0x30>
+    7c82:	2e 2e 2e 0a 00       	cs cs or %cs:(%bx,%si),%al
+	...
+    7dfb:	00 00                	add    %al,(%bx,%si)
+    7dfd:	00 55 aa             	add    %dl,-0x56(%di)

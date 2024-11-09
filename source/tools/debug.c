@@ -11,6 +11,14 @@ void dbg_print(int level,const char *file, const char *func, int line, const cha
     {
         return;
     }
+
+    static const char* title[] = {
+        [DBG_LEVEL_ERROR] = "error",
+        [DBG_LEVEL_WARNING] = "warning",
+        [DBG_LEVEL_INFO] = "info",
+        [DBG_LEVEL_NONE] = "none"
+    };
+
     char str_buf[MAX_STR_BUF_SIZE];
     va_list args;
 
@@ -18,7 +26,7 @@ void dbg_print(int level,const char *file, const char *func, int line, const cha
     memset(str_buf, '\0', sizeof(str_buf));
 
     // 组装文件、函数和行号信息
-    sprintf(str_buf, "in file:%s, func:%s, line:%d: ", file, func, line);
+    sprintf(str_buf, "[%s] in file:%s, func:%s, line:%d: ", title[level],file, func, line);
     int offset = strlen(str_buf);
 
     // 格式化日志信息
@@ -40,7 +48,7 @@ void dbg_print(int level,const char *file, const char *func, int line, const cha
 void panic (const char * file, int line, const char * func, const char * cond) {
     char str_buf[MAX_STR_BUF_SIZE];
 
-    sprintf(str_buf, "in file:%s, func:%s, line:%d: %s", file, func, line,cond);
+    sprintf(str_buf, "[assert] in file:%s, func:%s, line:%d: %s", file, func, line,cond);
     // 检查调试输出标志是否启用
     #ifdef DBG_OUTPUT_SERIAL
         serial_printf(str_buf);
