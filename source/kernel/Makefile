@@ -10,7 +10,7 @@ LIBDIR :=
 LIB := $(shell find $(LIBDIR) -name '*.a')
 LIBS := $(patsubst %,-L%,${LIBDIR})
 LFLAGS := $(patsubst lib%.a,-l%,${LIB})
-LFLAGS += -melf_i386 -Ttext=0x10000
+LFLAGS += -melf_i386 -Ttext=0x100000
 
 # 路径配置
 BUILD := ../../build

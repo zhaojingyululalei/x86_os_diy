@@ -5,7 +5,7 @@
 #include "boot_info.h"
 
 
-#define SYS_KERNEL_LOAD_ADDR (1024*1024)
+#define SYS_KERNEL_LOAD_ADDR (32*1024*1024)
 
 // 内存检测信息结构
 typedef struct SMAP_entry {

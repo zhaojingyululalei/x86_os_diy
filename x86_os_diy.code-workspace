@@ -14,7 +14,9 @@
 			"cpu_instr.h": "c",
 			"types.h": "c",
 			"time.h": "c",
-			"rtc.h": "c"
+			"rtc.h": "c",
+			"init.h": "c",
+			"mm_block.h": "c"
 		}
 	}
 }

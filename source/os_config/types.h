@@ -1,7 +1,7 @@
 #ifndef __TYPES_H
 #define __TYPES_H
 
-
+#define UINT32_MAX 0xFFFFFFFF
 typedef unsigned char uint8_t;
 
 typedef unsigned short uint16_t;
