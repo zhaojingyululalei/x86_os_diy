@@ -107,6 +107,15 @@ int free_pages(ph_addr_t addr, uint32_t n)
     return -1;
 }
 
+ph_addr_t alloc_one_page(void)
+{
+    return alloc_pages(1);
+}
+
+int free_one_page(ph_addr_t addr)
+{
+    return free_pages(addr,1);
+}
 void memblock_init(void)
 {
     for (int i = 0; i < MEM_MMREGION_MAX_CNT; i++) {

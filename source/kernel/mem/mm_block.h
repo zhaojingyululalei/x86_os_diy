@@ -31,4 +31,6 @@ typedef struct _memblock_t {
 void memblock_init(void);
 int free_pages(ph_addr_t addr,uint32_t n);
 ph_addr_t alloc_pages(uint32_t n);
+ph_addr_t alloc_one_page(void);
+int free_one_page(ph_addr_t addr);
 #endif
