@@ -30,7 +30,7 @@ static int free_region_in(memblock_region_t* region, memblock_type_t* mm)
     return -1;
 }
 
-ph_addr_t alloc_pages(uint32_t n) {
+ph_addr_t mm_alloc_pages(uint32_t n) {
     ph_addr_t ret = -1;
     memblock_region_t* region = NULL;
     memblock_region_t* best_fit = NULL;
@@ -78,7 +78,7 @@ ph_addr_t alloc_pages(uint32_t n) {
     return ret;
 }
 
-int free_pages(ph_addr_t addr, uint32_t n)
+int mm_free_pages(ph_addr_t addr, uint32_t n)
 {
     memblock_region_t* region;
     for (int i = 0; i < MEM_RVREGION_MAX_CNT; i++) {
@@ -107,14 +107,14 @@ int free_pages(ph_addr_t addr, uint32_t n)
     return -1;
 }
 
-ph_addr_t alloc_one_page(void)
+ph_addr_t mm_alloc_one_page(void)
 {
-    return alloc_pages(1);
+    return mm_alloc_pages(1);
 }
 
-int free_one_page(ph_addr_t addr)
+int mm_free_one_page(ph_addr_t addr)
 {
-    return free_pages(addr,1);
+    return mm_free_pages(addr,1);
 }
 void memblock_init(void)
 {

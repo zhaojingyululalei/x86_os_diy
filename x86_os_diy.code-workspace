@@ -16,7 +16,10 @@
 			"time.h": "c",
 			"rtc.h": "c",
 			"init.h": "c",
-			"mm_block.h": "c"
+			"mm_block.h": "c",
+			"mmu.h": "c",
+			"stdbool.h": "c",
+			"cpu_cfg.h": "c"
 		}
 	}
 }

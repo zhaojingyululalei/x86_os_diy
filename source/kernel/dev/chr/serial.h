@@ -6,6 +6,6 @@
 #include "cpu_instr.h"
 #include <stdarg.h>
 
-void rs232_init(void);
+void serial_init(void);
 void serial_printf(const char * str_buf);
 #endif

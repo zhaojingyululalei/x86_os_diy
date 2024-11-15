@@ -1,7 +1,8 @@
 #include "serial.h"
 
 #define COM1_PORT           0x3F8       // RS232端口0初始化
-void rs232_init(void)
+
+static void rs232_init(void)
 {
     outb(COM1_PORT + 1, 0x00);    // Disable all interrupts
     outb(COM1_PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -15,6 +16,10 @@ void rs232_init(void)
     outb(COM1_PORT + 4, 0x0F);
 }
 
+void serial_init(void)
+{
+    rs232_init();
+}
 
 /**
  * @brief 日志打印
@@ -28,4 +33,5 @@ void serial_printf(const char * str_buf) {
     }
     irq_leave_protection(state);
 }
+
 

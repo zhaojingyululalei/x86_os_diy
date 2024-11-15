@@ -78,5 +78,17 @@ static inline void cli() {
 static inline void sti() {
 	__asm__ __volatile__("sti");
 }
+static inline void lidt(uint32_t start, uint32_t size) {
+	struct {
+		uint16_t limit;
+		uint16_t start15_0;
+		uint16_t start31_16;
+	} idt;
 
+	idt.start31_16 = start >> 16;
+	idt.start15_0 = start & 0xFFFF;
+	idt.limit = size - 1;
+
+	__asm__ __volatile__("lidt %0"::"m"(idt));
+}
 #endif
