@@ -92,7 +92,8 @@ void gdt_init(void)
 {
     for(int i = boot_inform->gdt_entry_nr;i<GDT_ENTRYS_NUM;++i)
     {
-        gdt[i].v=0;
+        gdt[i].v_low=0;
+        gdt[i].v_high=0;
     }
 }
 void cpu_init(void)

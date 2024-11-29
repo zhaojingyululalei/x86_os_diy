@@ -19,7 +19,8 @@
 // 段描述符
 typedef union _seg_desc_t
 {
-    uint32_t v;
+    uint32_t v_low;
+    uint32_t v_high;
     struct
     {
         uint16_t limit_15_0;
@@ -41,7 +42,8 @@ typedef union _seg_desc_t
 // 门描述符
 typedef union _gate_desc_t
 {
-    uint32_t v;
+    uint32_t v_low;
+    uint32_t v_high;
     struct
     {
         uint16_t offset_15_0;

@@ -7,6 +7,9 @@
 #define PID_MAX_NR 1024
 #define TASK_MAX_NR PID_MAX_NR
 #define BITMAP_SIZE ((PID_MAX_NR + 7) / 8)
+
+#define DEFINE_PROCESS_FUNC(name)            void* name(void* arg)
+typedef void*(*process_func_t)(void*);
 /**
  * tss描述符
  */
@@ -89,22 +92,28 @@ int pid_alloc(pidalloc_t *alloc);
 void pid_free(pidalloc_t *alloc, int pid);
 void pidalloc_print(pidalloc_t *alloc);
 
-
+/*task*/
 int task_init(task_t *task,int type,ph_addr_t entry,task_attr_t *attr);
 task_t* task_alloc(void);
 void task_free(task_t* task);
+void create_kernel_process(task_t* task,process_func_t func);
 
-
+/**
+ * 任务调度
+ **/
 void sched_init(void);
 void switch_to_tss (uint32_t tss_selector);
-/**
- * 切换任务
- **/
 void task_switch_from_to (task_t * from, task_t * to);
 task_t* get_cur_task(void);
 void set_cur_task(task_t* task);
 task_t* get_ready_task(void);
 void set_task_to_ready_list(task_t* task);
+void remove_task_from_ready_list(task_t* task);
 void schedul(void);
 void task_time_tick(void);
+void task_goto_sleep(task_t* task);
+void task_wakeup(task_t* task);
+
+/*系统调用*/
+int sys_sleep_ms(int time);
 #endif

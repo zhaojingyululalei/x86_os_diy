@@ -109,3 +109,12 @@ void task_free(task_t* task)
 {
     task->type = TASKNONE;
 }
+
+void create_kernel_process(task_t* task,process_func_t func)
+{
+    irq_state_t state = irq_enter_protection();
+    task_init(task, KERNEL, func, NULL);
+    set_task_to_ready_list(task);
+    irq_leave_protection(state);
+}
+

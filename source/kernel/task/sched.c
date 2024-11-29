@@ -19,8 +19,8 @@ static idle_task_init(void)
 }
 static void first_task_init(void)
 {
-    
-    task_init(&schedulor.first_task,KERNEL,0,NULL);
+
+    task_init(&schedulor.first_task, KERNEL, 0, NULL);
     set_cur_task(&schedulor.first_task);
     write_tr(schedulor.first_task.tss_sel);
 }
@@ -63,6 +63,15 @@ void set_task_to_ready_list(task_t *task)
     }
     list_insert_last(&schedulor.ready_list, &task->node);
 }
+void remove_task_from_ready_list(task_t* task)
+{
+    if (!task)
+    {
+        dbg_error("task is empty\r\n");
+        return;
+    }
+    list_remove(&schedulor.ready_list,&task->node);
+}
 
 /**
  * 切换至TSS，即跳转实现任务切换
@@ -76,6 +85,10 @@ void switch_to_tss(uint32_t tss_selector)
  **/
 void task_switch_from_to(task_t *from, task_t *to)
 {
+    if(from == to)
+    {
+        return;
+    }
     switch_to_tss(to->tss_sel);
 }
 void schedul(void)
@@ -83,16 +96,25 @@ void schedul(void)
 
     task_t *pre_task = get_cur_task();
     task_t *cur_task = get_ready_task();
-    if (pre_task == cur_task)
+    //调度任务都存在，且一样，那就不用调度，tss无法切换相同任务，报错
+    if (pre_task == cur_task &&pre_task &&cur_task)
     {
         return;
     }
-    if(cur_task == NULL)
-    {
+    //没有任务准备好
+    if (cur_task == NULL)
+    {   
+        //如果当前任务是空闲任务，而且没有其他任务准备好，那就继续空闲任务，不用切换
+        if(pre_task == &schedulor.idle_task)
+        {
+            return;
+        }
+        //如果当前任务不是空闲任务，且其他任务没准备好，那就切换到空闲任务
         cur_task = &schedulor.idle_task;
     }
     set_cur_task(cur_task);
-    if(pre_task != &schedulor.idle_task)
+    //空闲任务或者task==null，不要往就绪队列里塞
+    if (pre_task != &schedulor.idle_task && pre_task!=NULL)
     {
 
         set_task_to_ready_list(pre_task);
@@ -104,6 +126,21 @@ void task_time_tick(void)
 {
     irq_state_t state = irq_enter_protection();
 
+    // 睡眠处理
+    list_node_t *sleep_node = list_first(&schedulor.sleep_list);
+    while (sleep_node)
+    {
+        list_node_t* next = list_node_next(sleep_node);
+        task_t *task = list_node_parent(sleep_node, task_t, node);
+        if(--task->sleep_ticks == 0)
+        {
+            task_wakeup(task);
+            set_task_to_ready_list(task);
+        }
+        sleep_node = next;
+    }
+
+    // 时间片处理
     task_t *cur_task = get_cur_task();
     if (cur_task == NULL)
     {
@@ -120,4 +157,37 @@ void task_time_tick(void)
     }
 
     irq_leave_protection(state);
+}
+
+void task_goto_sleep(task_t *task)
+{
+    list_insert_last(&schedulor.sleep_list, &task->node);
+}
+
+void task_wakeup(task_t* task)
+{
+    list_remove(&schedulor.sleep_list, &task->node);
+}
+#include "dev/timer.h"
+/**
+ * 至少睡10ms
+ */
+int sys_sleep_ms(int time)
+{
+    irq_state_t state = irq_enter_protection();
+    if(time < OS_TICK_MS)
+    {
+        time = OS_TICK_MS;
+    }
+    task_t* cur_task = get_cur_task();
+    if(!cur_task)
+    {
+        return -1;
+    }
+    cur_task->sleep_ticks = (time + (OS_TICK_MS - 1))/ OS_TICK_MS;
+    set_cur_task(NULL);
+    task_goto_sleep(cur_task);
+    schedul();
+    irq_leave_protection(state);
+    return 0;
 }

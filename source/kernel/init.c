@@ -11,16 +11,13 @@ boot_info_t *boot_inform = NULL;
 #include "cpu_instr.h"
 task_t second_task;
 
-void func(void)
+DEFINE_PROCESS_FUNC(second_func)
 {
     while (1)
     {
 
         dbg_info("i am second task\r\n");
-        for (int i = 0; i < 0xFFFFFF; i++)
-        {
-            ;
-        }
+        sys_sleep_ms(1000);
     }
 }
 
@@ -35,18 +32,13 @@ void kernel_init(boot_info_t *boot_info)
     timer_init();
     irq_enable_global();
 
-    irq_state_t state = irq_enter_protection();
-    task_init(&second_task, KERNEL, func, NULL);
-    set_task_to_ready_list(&second_task);
-    irq_leave_protection(state);
+    create_kernel_process(&second_task,second_func);
+    
 
     // int i = 1 /0;
     while (1)
     {
         dbg_info("i am first task\r\n");
-        for (int i = 0; i < 0xFFFFFF; i++)
-        {
-            ;
-        }
+        sys_sleep_ms(1000);
     }
 }
