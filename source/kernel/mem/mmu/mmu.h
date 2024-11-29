@@ -22,7 +22,7 @@ typedef union _pde_t {
         uint32_t cache_disable : 1;             // 4 (PCD) Page-level cache disable
         uint32_t accessed : 1;                  // 5 (A) Accessed
         uint32_t : 1;                           // 6 Ignored;
-        uint32_t ps : 1;                        // 7 (PS)
+        uint32_t ps : 1;                        // 7 (PS) 0 4KB  1 4MB
         uint32_t : 4;                           // 11:8 Ignored
         uint32_t phy_pt_addr : 20;              // 高20位page table物理地址
     };
@@ -49,5 +49,9 @@ typedef union _pte_t {
 }pte_t;
 #pragma pack()
 
+void mmu_test(void);
 void kernel_pgd_create(void);
+int mmu_memory_map(ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
+int mmu_get_phaddr(ph_addr_t vm) ;
+ph_addr_t mmu_create_task_pgd(void);
 #endif

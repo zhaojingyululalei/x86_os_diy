@@ -10,6 +10,11 @@
 #define GATE_DPL0			(0 )		// 特权级0，最高特权级
 #define GATE_DPL3			(3 )		// 特权级3，最低权限
 
+#define SEG_TYPE_TSS      	(9)		// 32位TSS
+
+#define EFLAGS_IF           (1 << 9)
+#define EFLAGS_DEFAULT      (1 << 1)
+
 #pragma pack(1)
 // 段描述符
 typedef union _seg_desc_t
@@ -59,5 +64,7 @@ void irq_leave_protection(irq_state_t state);
 
 void cpu_init(void);
 gate_desc_t* get_idt_gate_desc(int irq_num);
-
+void gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit);
+int gdt_alloc_desc(void);
+int gdt_free_desc(int selector);
 #endif

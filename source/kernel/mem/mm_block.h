@@ -5,7 +5,7 @@
 #define MEM_PAGE_SIZE 4096
 #define MEM_MMREGION_MAX_CNT    1024
 #define MEM_RVREGION_MAX_CNT    1024
-typedef uint32_t ph_addr_t;
+
 typedef struct _memblock_region_t {
     ph_addr_t base;      // 区域的起始物理地址
     ph_addr_t size;      // 区域的大小

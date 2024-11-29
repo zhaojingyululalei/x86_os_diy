@@ -4,5 +4,5 @@
 
 #include "time.h"
 extern time_t startup_time;
-void time_init(void);
+void rtc_init(void);
 #endif

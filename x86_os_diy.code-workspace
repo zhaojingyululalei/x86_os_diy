@@ -19,7 +19,10 @@
 			"mm_block.h": "c",
 			"mmu.h": "c",
 			"stdbool.h": "c",
-			"cpu_cfg.h": "c"
+			"cpu_cfg.h": "c",
+			"timer.h": "c",
+			"err.h": "c",
+			"task.h": "c"
 		}
 	}
 }

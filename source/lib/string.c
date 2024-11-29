@@ -69,28 +69,22 @@ int memcmp(const void *d1, const void *d2, int size) {
     return 0;
 }
 
-// 整数转字符串函数 itoa
-void itoa(char *buf, int num, int base) {
+void itoa(char *buf, uint32_t num, int base) {
     char *ptr = buf;
-    int is_negative = (num < 0 && base == 10);
 
-    if (is_negative) {
-        num = -num;
-    }
+    // 临时变量
+    uint32_t temp = num;
 
-    int temp = num;
+    // 转换为字符串（低位在前）
     do {
         int remainder = temp % base;
         *ptr++ = (remainder > 9) ? (remainder - 10) + 'a' : remainder + '0';
     } while (temp /= base);
 
-    if (is_negative) {
-        *ptr++ = '-';
-    }
-
+    // 添加字符串结束符
     *ptr = '\0';
 
-    // Reverse the string
+    // 反转字符串
     char *start = buf;
     char *end = ptr - 1;
     while (start < end) {
@@ -99,6 +93,7 @@ void itoa(char *buf, int num, int base) {
         *end-- = tmp;
     }
 }
+
 
 // 格式化字符串输出函数 sprintf
 void sprintf(char *buffer, const char *fmt, ...) {

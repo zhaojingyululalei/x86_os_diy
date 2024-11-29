@@ -14,7 +14,7 @@ static inline uint8_t read_cmos(uint8_t reg) {
 
 time_t startup_time;
 
-void time_init(void)
+void rtc_init(void)
 {
     tm_t time;
 

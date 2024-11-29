@@ -184,7 +184,7 @@ void do_handler_smd_exception(exception_frame_t * frame) {
 void do_handler_virtual_exception(exception_frame_t * frame) {
 	do_default_handler(frame, "Virtualization Exception.");
 }
-
+#include "init.h"
 void interupt_install(int irq_num, irq_handler_t handler)
 {
     if (irq_num >= IDT_ENTRYS_NUM || irq_num < 0)
@@ -200,6 +200,7 @@ void interupt_install(int irq_num, irq_handler_t handler)
     desc->param = 0;
     desc->selector = SELECTOR_KERNEL_CODE_SEG;
     desc->type = GATE_TRAP_TYPE_IDT;
+    boot_inform->idt_entry_nr++;
     return;
 }
 
@@ -218,6 +219,7 @@ int trap_install(int irq_num, irq_handler_t handler)
     desc->param = 0;
     desc->selector = SELECTOR_KERNEL_CODE_SEG;
     desc->type = GATE_INT_TYPE_IDT;
+    boot_inform->idt_entry_nr++;
     return;
 }
 void trap_init(void)

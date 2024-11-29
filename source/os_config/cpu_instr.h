@@ -91,4 +91,13 @@ static inline void lidt(uint32_t start, uint32_t size) {
 
 	__asm__ __volatile__("lidt %0"::"m"(idt));
 }
+
+static inline void write_tr (uint32_t tss_selector) {
+    __asm__ __volatile__("ltr %%ax"::"a"(tss_selector));
+}
+static inline void far_jump(uint32_t selector, uint32_t offset) {
+	uint32_t addr[] = {offset, selector };
+	__asm__ __volatile__("ljmpl *(%[a])"::[a]"r"(addr));
+}
+
 #endif
