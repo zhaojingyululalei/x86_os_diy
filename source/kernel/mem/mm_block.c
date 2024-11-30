@@ -31,6 +31,7 @@ static int free_region_in(memblock_region_t* region, memblock_type_t* mm)
 }
 
 ph_addr_t mm_alloc_pages(uint32_t n) {
+    sys_mutex_lock(&memblock.mutex);
     ph_addr_t ret = -1;
     memblock_region_t* region = NULL;
     memblock_region_t* best_fit = NULL;
@@ -71,15 +72,17 @@ ph_addr_t mm_alloc_pages(uint32_t n) {
         } else {
             // 处理错误，避免空指针访问
             dbg_warning("内存不足，无法在 reserved 中记录分配信息\n");
+            sys_mutex_unlock(&memblock.mutex);
             return -1;
         }
     }
-
+    sys_mutex_unlock(&memblock.mutex);
     return ret;
 }
 
 int mm_free_pages(ph_addr_t addr, uint32_t n)
 {
+    sys_mutex_lock(&memblock.mutex);
     memblock_region_t* region;
     for (int i = 0; i < MEM_RVREGION_MAX_CNT; i++) {
         if (rv_regions[i].flag == RESERVED) {
@@ -96,14 +99,17 @@ int mm_free_pages(ph_addr_t addr, uint32_t n)
                     region->flag = MEMORY;
                     region->base = addr;
                     region->size = n * MEM_PAGE_SIZE;
+                    sys_mutex_unlock(&memblock.mutex);
                     return 0;
                 } else {
                     dbg_warning("无法在 memory 中记录释放的区域\n");
+                    sys_mutex_unlock(&memblock.mutex);
                     return -1;
                 }
             }
         }
     }
+    sys_mutex_unlock(&memblock.mutex);
     return -1;
 }
 
@@ -118,6 +124,8 @@ int mm_free_one_page(ph_addr_t addr)
 }
 void memblock_init(void)
 {
+
+    sys_mutex_init(&memblock.mutex);
     for (int i = 0; i < MEM_MMREGION_MAX_CNT; i++) {
         mm_regions[i].flag = NONE;
     }

@@ -101,15 +101,15 @@ void schedul(void)
     {
         return;
     }
-    //没有任务准备好
+    //没有其他任务准备好
     if (cur_task == NULL)
     {   
-        //如果当前任务是空闲任务，而且没有其他任务准备好，那就继续空闲任务，不用切换
-        if(pre_task == &schedulor.idle_task)
+        //只要当前任务存在(无论是空闲任务还是有效任务)，那么继续执行当前任务，不用切换
+        if(pre_task)
         {
             return;
         }
-        //如果当前任务不是空闲任务，且其他任务没准备好，那就切换到空闲任务
+        //如果当前任务为空，也就是当前任务被调度到其他地方了。这时再执行空闲任务
         cur_task = &schedulor.idle_task;
     }
     set_cur_task(cur_task);

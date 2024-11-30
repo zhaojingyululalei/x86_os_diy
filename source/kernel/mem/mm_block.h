@@ -2,6 +2,7 @@
 #define __MM_BLOCK_H
 
 #include "types.h"
+#include "ipc/mutex.h"
 #define MEM_PAGE_SIZE 4096
 #define MEM_MMREGION_MAX_CNT    1024
 #define MEM_RVREGION_MAX_CNT    1024
@@ -26,6 +27,8 @@ typedef struct _memblock_type_t {
 typedef struct _memblock_t {
     memblock_type_t memory;    // 表示可用的内存区域
     memblock_type_t reserved;  // 表示已保留的内存区域
+
+    mutex_t mutex;
 }memblock_t;
 
 void memblock_init(void);

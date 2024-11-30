@@ -95,6 +95,10 @@ list_node_t* list_remove_first(list_t *list) {
  * 不检查node是否在结点中
  */
 list_node_t * list_remove(list_t *list, list_node_t *remove_node) {
+    if(list_is_empty(list))
+    {
+        return (list_node_t*)0;
+    }
     // 如果是头，头往前移
     if (remove_node == list->first) {
         list->first = remove_node->next;

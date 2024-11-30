@@ -3,24 +3,27 @@
 #include "types.h"
 #include "init.h"
 
-#define GATE_INT_TYPE_IDT		(0xE )		// 中断32位门描述符
-#define GATE_TRAP_TYPE_IDT		(0xF )		// 中断32位门描述符
-#define GATE_SYSCALL_TYPE_GDT	(0xC )		// 调用门
-#define GATE_P_PRESENT		(1 )		// 是否存在
-#define GATE_DPL0			(0 )		// 特权级0，最高特权级
-#define GATE_DPL3			(3 )		// 特权级3，最低权限
+#define GATE_INT_TYPE_IDT (0xE)     // 中断32位门描述符
+#define GATE_TRAP_TYPE_IDT (0xF)    // 中断32位门描述符
+#define GATE_SYSCALL_TYPE_GDT (0xC) // 调用门
+#define GATE_P_PRESENT (1)          // 是否存在
+#define GATE_DPL0 (0)               // 特权级0，最高特权级
+#define GATE_DPL3 (3)               // 特权级3，最低权限
 
-#define SEG_TYPE_TSS      	(9)		// 32位TSS
+#define SEG_TYPE_TSS (9) // 32位TSS
 
-#define EFLAGS_IF           (1 << 9)
-#define EFLAGS_DEFAULT      (1 << 1)
+#define EFLAGS_IF (1 << 9)
+#define EFLAGS_DEFAULT (1 << 1)
 
 #pragma pack(1)
 // 段描述符
 typedef union _seg_desc_t
 {
-    uint32_t v_low;
-    uint32_t v_high;
+    struct
+    {
+        uint32_t v_low;
+        uint32_t v_high;
+    };
     struct
     {
         uint16_t limit_15_0;
@@ -42,8 +45,12 @@ typedef union _seg_desc_t
 // 门描述符
 typedef union _gate_desc_t
 {
-    uint32_t v_low;
-    uint32_t v_high;
+    struct
+    {
+        uint32_t v_low;
+        uint32_t v_high;
+    };
+
     struct
     {
         uint16_t offset_15_0;
@@ -65,8 +72,8 @@ irq_state_t irq_enter_protection(void);
 void irq_leave_protection(irq_state_t state);
 
 void cpu_init(void);
-gate_desc_t* get_idt_gate_desc(int irq_num);
-void gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit);
+gate_desc_t *get_idt_gate_desc(int irq_num);
+void gdt_set_tss(int tss_sel, ph_addr_t tss_base, uint32_t tss_limit);
 int gdt_alloc_desc(void);
 int gdt_free_desc(int selector);
 #endif
