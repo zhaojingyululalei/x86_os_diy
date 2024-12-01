@@ -12,21 +12,41 @@ boot_info_t *boot_inform = NULL;
 #include "ipc/mutex.h"
 #include "ipc/semaphor.h"
 task_t second_task;
+task_t kernel_task;
 
-mutex_t mutex;
-sem_t sem;
 
 DEFINE_PROCESS_FUNC(second_func)
 {
-    sys_sleep_ms(1000);
+    
     while (1)
     {
-        sys_sem_notify(&sem);
+        
         dbg_info("product an apple\r\n");
         sys_sleep_ms(1000);
     }
 }
 
+
+void jmp_to_first_task(void)
+{
+    task_t * curr = get_cur_task();
+    ASSERT(curr != 0);
+
+    tss_t * tss = &(curr->tss);
+
+    // 也可以使用类似boot跳loader中的函数指针跳转
+    // 这里用jmp是因为后续需要使用内联汇编添加其它代码
+    __asm__ __volatile__(
+        // 模拟中断返回，切换入第1个可运行应用进程
+        // 不过这里并不直接进入到进程的入口，而是先设置好段寄存器，再跳过去
+        "push %[ss]\n\t"			// SS
+        "push %[esp]\n\t"			// ESP
+        "push %[eflags]\n\t"           // EFLAGS
+        "push %[cs]\n\t"			// CS
+        "push %[eip]\n\t"		    // ip
+        "iret\n\t"::[ss]"r"(tss->ss),  [esp]"r"(tss->esp), [eflags]"r"(tss->eflags),
+        [cs]"r"(tss->cs), [eip]"r"(tss->eip));
+}
 void kernel_init(boot_info_t *boot_info)
 {
     boot_inform = boot_info;
@@ -36,18 +56,17 @@ void kernel_init(boot_info_t *boot_info)
     cpu_init();
     sched_init();
     timer_init();
-    irq_enable_global();
-    sys_mutex_init(&mutex);
-    sys_sem_init(&sem,5);
-    create_kernel_process(&second_task,second_func);
-    
 
-    // int i = 1 /0;
+    //create_kernel_process(&second_task,second_func);
+
+    first_task_init();
+    irq_enable_global();
+    jmp_to_first_task();
     while (1)
     {
-        sys_sem_wait(&sem);
-        dbg_info("i eat an apple\r\n");
-        
-        
+        dbg_info("eat an apple\r\n");
+        sys_sleep_ms(1000);
     }
+    
+    
 }

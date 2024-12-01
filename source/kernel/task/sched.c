@@ -4,8 +4,10 @@
 #include "debug.h"
 #include "cpu.h"
 #include "cpu_instr.h"
+#include "mem/memory.h"
+#include "string.h"
 static schedulor_t schedulor;
-
+static uint8_t idle_stack[1024];
 static void idle_func(void)
 {
     while (1)
@@ -15,12 +17,26 @@ static void idle_func(void)
 }
 static idle_task_init(void)
 {
-    task_init(&schedulor.idle_task, KERNEL, idle_func, NULL);
+    task_init(&schedulor.idle_task, KERNEL, idle_func,&idle_stack[1023], NULL);
 }
-static void first_task_init(void)
+void first_task_init(void)
 {
-
-    task_init(&schedulor.first_task, KERNEL, 0, NULL);
+    /*链接脚本中的变量*/
+    extern void first_task_entry(void);
+    extern uint8_t s_first_task_ph,s_first_task_vm,e_first_task_ph,e_first_task_vm;
+    ph_addr_t f_task_start_ph = &s_first_task_ph;
+    ph_addr_t f_task_start_vm = &s_first_task_vm;
+    ph_addr_t f_task_end_ph = &e_first_task_ph;
+    ph_addr_t f_task_end_vm = &e_first_task_vm;
+    ph_addr_t first_start = (ph_addr_t)first_task_entry;
+    uint32_t alloc_size = 10 * MEM_PAGE_SIZE;
+    uint32_t page_count = 10;
+    task_init(&schedulor.first_task, USR, first_start,first_start+alloc_size, NULL);
+    //分配进程空间
+    mmblock(&schedulor.first_task,first_start,page_count);
+    //将用户部分代码拷贝过去
+    write_cr3(schedulor.first_task.tss.cr3);
+    memcpy(first_start,f_task_start_ph,(uint32_t)(f_task_end_ph-f_task_start_ph));
     set_cur_task(&schedulor.first_task);
     write_tr(schedulor.first_task.tss_sel);
 }
@@ -32,7 +48,7 @@ void sched_init(void)
     list_init(&schedulor.sleep_list);
     schedulor.cur_task = NULL;
     idle_task_init();
-    first_task_init();
+    
 }
 
 task_t *get_cur_task(void)

@@ -73,7 +73,7 @@ ph_addr_t mm_alloc_pages(uint32_t n) {
             // 处理错误，避免空指针访问
             dbg_warning("内存不足，无法在 reserved 中记录分配信息\n");
             sys_mutex_unlock(&memblock.mutex);
-            return -1;
+            return 0;
         }
     }
     sys_mutex_unlock(&memblock.mutex);
@@ -122,6 +122,7 @@ int mm_free_one_page(ph_addr_t addr)
 {
     return mm_free_pages(addr,1);
 }
+
 void memblock_init(void)
 {
 
@@ -153,4 +154,36 @@ void memblock_init(void)
     } else {
         dbg_warning("内存区域初始化失败\n");
     }
+}
+
+/**
+ * 给进程虚拟空间分配内存
+ */
+int mmblock(task_t *task, ph_addr_t vm_start, uint32_t n)
+{
+    //获取进程自己的页目录
+    ph_addr_t page_dir = task_get_page_dir(task);
+    if(page_dir==NULL)
+    {
+        dbg_error("task cr3 not init yet\r\n");
+        return -1;
+    }
+    pde_t* pde = (pde_t*)page_dir;
+    //为进程分配n页物理内存
+    ph_addr_t ph_start = mm_alloc_pages(n);
+    if(ph_start==NULL)
+    {
+        return -1;
+    }
+    for (int i = 0; i < n; i++)
+    {
+        //建立虚拟内存和物理内存的映射关系到页表中
+        mmu_memory_map((pde_t*)page_dir,vm_start,ph_start,1,1);
+        vm_start+=MEM_PAGE_SIZE;
+        ph_start+=MEM_PAGE_SIZE;
+    }
+
+
+    return 0;
+
 }

@@ -24,12 +24,12 @@ void kernel_pgd_create(void)
             return;
         }
         // 给PDE赋值
-        pgd[i] = pmd_addr | PDE_P | PDE_U;
+        pgd[i] = pmd_addr | PDE_P | PDE_U |PDE_W;
         // dbg_info("pde addr %x,value %x",&pgd[i],pgd[i]);
         // 给PTE赋值
         for (int j = 0; j < 1024; j++)
         {
-            pte[j] = start_addr | PTE_P | PTE_W;
+            pte[j] = start_addr | PTE_P | PTE_W ;
             // dbg_info("pte addr %x,value %x\r\n",&pte[j],pte[j]);
             start_addr += MEM_PAGE_SIZE;
         }
@@ -40,10 +40,10 @@ void kernel_pgd_create(void)
 }
 
 /*建立虚拟地址，物理地址内存映射关系*/
-int mmu_memory_map(ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc)
+int mmu_memory_map(pde_t page_dir[],ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc)
 {
     int pgd_idx = (vm >> 22) & 0x3FF; // 取虚拟地址高10位
-    pde_t *pde = &pgd[pgd_idx];
+    pde_t *pde = &page_dir[pgd_idx];
     ph_addr_t pmd,alloced;
     if (!pde->present)
     {
@@ -65,7 +65,7 @@ int mmu_memory_map(ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t
     if (pte->present)
     {
         mm_free_one_page(alloced);
-        dbg_error("There is a mapping relationship here, and this operation will overwrite the existing mapping");
+        dbg_error("There is a mapping relationship here, and this operation will overwrite the existing mapping\r\n");
         return -1;
     }
     pte->present = 1;
@@ -150,7 +150,7 @@ void mmu_test(void)
     ph_addr_t phm1 = 0x200000;  // 物理地址
 
     // 建立映射
-    int result = mmu_memory_map(vm1, phm1, 1, 0); // 可写，用户模式访问
+    int result = mmu_memory_map(pgd,vm1, phm1, 1, 0); // 可写，用户模式访问
     if (result == 1) {
         dbg_info("Mapping successful: VM 0x%x -> PM 0x%x\r\n", vm1, phm1);
     } else {

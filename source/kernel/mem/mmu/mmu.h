@@ -7,6 +7,7 @@
 #define PTE_U       (1 << 2)
 
 #define PDE_P       (1 << 0)
+#define PDE_W       (1 << 1)
 #define PDE_U       (1 << 2)
 #pragma pack(1)
 /**
@@ -51,7 +52,7 @@ typedef union _pte_t {
 
 void mmu_test(void);
 void kernel_pgd_create(void);
-int mmu_memory_map(ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
+int mmu_memory_map(pde_t page_dir[] ,ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
 int mmu_get_phaddr(ph_addr_t vm) ;
 ph_addr_t mmu_create_task_pgd(void);
 #endif

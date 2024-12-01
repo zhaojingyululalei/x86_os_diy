@@ -2,6 +2,7 @@
 #define __TASK_H
 #include "types.h"
 #include "list.h"
+#include "cpu_cfg.h"
 #define TASK_TIME_SLICE_DEFAULT		10			// 时间片计数
 #define TASK_SCHED_POLICY_DEFAULT   SCHED_FIFO
 #define PID_MAX_NR 1024
@@ -93,11 +94,12 @@ void pid_free(pidalloc_t *alloc, int pid);
 void pidalloc_print(pidalloc_t *alloc);
 
 /*task*/
-int task_init(task_t *task,int type,ph_addr_t entry,task_attr_t *attr);
+int task_init(task_t *task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *attr);
 task_t* task_alloc(void);
 void task_free(task_t* task);
 void create_kernel_process(task_t* task,process_func_t func);
-
+ph_addr_t task_get_page_dir(task_t* task);
+void first_task_init(void);
 /**
  * 任务调度
  **/
