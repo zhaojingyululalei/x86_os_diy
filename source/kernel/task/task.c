@@ -9,7 +9,7 @@
 task_t task_pool[TASK_MAX_NR];
 
 
-int tss_init(task_t* task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *attr)
+int tss_init(task_t* task,int type,ph_addr_t entry,task_attr_t *attr)
 {
     int tss_sel = gdt_alloc_desc();
     if(tss_sel<0)
@@ -29,28 +29,6 @@ int tss_init(task_t* task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *at
         return MEM_NOT_ENOUGH;
     }
 
-    // 根据不同的权限选择不同的访问选择子
-    int code_sel, data_sel;
-    if (type == KERNEL) {
-        code_sel = SELECTOR_KERNEL_CODE_SEG;
-        data_sel = SELECTOR_KERNEL_DATA_SEG;
-    } else {
-        // 注意加了RP3,不然将产生段保护错误
-        code_sel = SELECTOR_USR_CODE_SEG;
-        data_sel = SELECTOR_USR_DATA_SEG;
-    }
-
-    task->tss.eip = entry;
-    task->tss.esp = esp ? esp : kernel_stack_base + MEM_PAGE_SIZE;  // 未指定栈则用内核栈，即运行在特权级0的进程
-    task->tss.esp0 = kernel_stack_base + MEM_PAGE_SIZE;
-    task->tss.ss0 = SELECTOR_KERNEL_DATA_SEG;
-    task->tss.eip = entry;
-    task->tss.eflags = EFLAGS_DEFAULT| EFLAGS_IF;
-    task->tss.es = task->tss.ss = task->tss.ds = task->tss.fs 
-            = task->tss.gs = data_sel;   // 全部采用同一数据段
-    task->tss.cs = code_sel; 
-    task->tss.iomap = 0;
-
     uint32_t page_dir = mmu_create_task_pgd();
     if(page_dir ==NULL)
     {
@@ -63,10 +41,35 @@ int tss_init(task_t* task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *at
     task->tss.cr3 = page_dir;
     task->tss_sel = tss_sel;
 
+    // 根据不同的权限选择不同的访问选择子
+    int code_sel, data_sel;
+    if (type == KERNEL) {
+        code_sel = SELECTOR_KERNEL_CODE_SEG;
+        data_sel = SELECTOR_KERNEL_DATA_SEG;
+        task->tss.esp = kernel_stack_base+MEM_PAGE_SIZE;
+    } else {
+        // 注意加了RP3,不然将产生段保护错误
+        code_sel = SELECTOR_USR_CODE_SEG;
+        data_sel = SELECTOR_USR_DATA_SEG;
+        int stack_page_count = task->attr.stack_size/MEM_PAGE_SIZE;
+        mmblock(task,USR_STACK_TOP-task->attr.stack_size,stack_page_count);
+        task->tss.esp = USR_STACK_TOP;
+    }
+
+    task->tss.eip = entry;
+    task->tss.esp0 = kernel_stack_base + MEM_PAGE_SIZE;
+    task->tss.ss0 = SELECTOR_KERNEL_DATA_SEG;
+    task->tss.eip = entry;
+    task->tss.eflags = EFLAGS_DEFAULT| EFLAGS_IF;
+    task->tss.es = task->tss.ss = task->tss.ds = task->tss.fs 
+            = task->tss.gs = data_sel;   // 全部采用同一数据段
+    task->tss.cs = code_sel; 
+    task->tss.iomap = 0;
+
     return ERROR_OK;   
 }
 
-int task_init(task_t *task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *attr)
+int task_init(task_t *task,int type,ph_addr_t entry,task_attr_t *attr)
 {
     if(!task){
         return TASK_NULL;
@@ -83,7 +86,7 @@ int task_init(task_t *task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *a
         task->slice_ticks = task->attr.time_slice = TASK_TIME_SLICE_DEFAULT;
     }
     int ret;
-    ret = tss_init(task,type,entry,esp,attr);
+    ret = tss_init(task,type,entry,attr);
     if(ret != ERROR_OK)
     {
         dbg_error("%s\r\n",err_str[ret]);
@@ -92,6 +95,8 @@ int task_init(task_t *task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *a
     task->pid = pid_alloc(&pidallocter);
     task->type = type;
     task->state = TASK_CREATED;
+    task->entry = entry;
+    
     return 0;
 }
 
@@ -117,7 +122,7 @@ void create_kernel_process(task_t* task,process_func_t func)
 {
     irq_state_t state = irq_enter_protection();
     ph_addr_t esp = mm_alloc_one_page();
-    task_init(task, KERNEL, func,esp, NULL);
+    task_init(task, KERNEL, func ,NULL);
     set_task_to_ready_list(task);
     irq_leave_protection(state);
 }
@@ -125,4 +130,9 @@ void create_kernel_process(task_t* task,process_func_t func)
 ph_addr_t task_get_page_dir(task_t *task)
 {
     return task->tss.cr3;
+}
+
+int sys_getpid(void)
+{
+    return get_cur_task()->pid;
 }

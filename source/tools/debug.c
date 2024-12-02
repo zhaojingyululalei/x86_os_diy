@@ -2,9 +2,9 @@
 #include "chr/serial.h"
 #include "cpu_instr.h"
 
-#define MAX_STR_BUF_SIZE 256
+
 /**
- * @brief 格式化日志并打印到串口（使用 sprintf 和 vsprintf）
+ * @brief 格式化日志并打印到串口
  */
 void dbg_print(int level, const char *file, const char *func, int line, const char *fmt, ...)
 {

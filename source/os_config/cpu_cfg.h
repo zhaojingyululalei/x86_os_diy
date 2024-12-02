@@ -3,7 +3,7 @@
 
 #include "mem_addr_cfg.h"
 #define MEM_TOTAL_SIZE  (128*1024*1024)
-#define USR_STACK_TOP   0xC0000000
+#define USR_STACK_TOP   0xFFFFF000
 //GDT描述符格式
 #define GDT_DESC_LIMIT_0_15_POS    0
 #define GDT_DESC_BASE_0_15_POS     16
@@ -54,8 +54,9 @@
 #define SELECTOR_KERNEL_DATA_SEG        (4<<3|RPL_0)
 #define SELECTOR_USR_CODE_SEG           (5<<3|RPL_3)   
 #define SELECTOR_USR_DATA_SEG           (6<<3|RPL_3)
+#define SELECTOR_CALL_GATE              (7<<3|RPL_3)
 
-//fisrt task config
+#define CALL_GATE_PRAM_COUNT    5
 
 
 

@@ -7,7 +7,7 @@
 #include "mem/memory.h"
 #include "string.h"
 static schedulor_t schedulor;
-static uint8_t idle_stack[1024];
+//static uint8_t idle_stack[1024];
 static void idle_func(void)
 {
     while (1)
@@ -17,7 +17,7 @@ static void idle_func(void)
 }
 static idle_task_init(void)
 {
-    task_init(&schedulor.idle_task, KERNEL, idle_func,&idle_stack[1023], NULL);
+    task_init(&schedulor.idle_task, KERNEL, idle_func, NULL);
 }
 void first_task_init(void)
 {
@@ -28,12 +28,11 @@ void first_task_init(void)
     ph_addr_t f_task_start_vm = &s_first_task_vm;
     ph_addr_t f_task_end_ph = &e_first_task_ph;
     ph_addr_t f_task_end_vm = &e_first_task_vm;
+    uint32_t code_page_count =  (f_task_end_ph - f_task_start_ph + MEM_PAGE_SIZE -1)/MEM_PAGE_SIZE;
     ph_addr_t first_start = (ph_addr_t)first_task_entry;
-    uint32_t alloc_size = 10 * MEM_PAGE_SIZE;
-    uint32_t page_count = 10;
-    task_init(&schedulor.first_task, USR, first_start,first_start+alloc_size, NULL);
+    task_init(&schedulor.first_task, USR, first_start, NULL);
     //分配进程空间
-    mmblock(&schedulor.first_task,first_start,page_count);
+    mmblock(&schedulor.first_task,first_start,code_page_count);
     //将用户部分代码拷贝过去
     write_cr3(schedulor.first_task.tss.cr3);
     memcpy(first_start,f_task_start_ph,(uint32_t)(f_task_end_ph-f_task_start_ph));
@@ -57,6 +56,10 @@ task_t *get_cur_task(void)
 }
 void set_cur_task(task_t *task)
 {
+    if(task)
+    {
+        task->state = TASK_RUNNING;
+    }
     schedulor.cur_task = task;
 }
 
@@ -77,6 +80,7 @@ void set_task_to_ready_list(task_t *task)
         dbg_error("task is empty\r\n");
         return;
     }
+    task->state = TASK_READY;
     list_insert_last(&schedulor.ready_list, &task->node);
 }
 void remove_task_from_ready_list(task_t* task)
@@ -177,6 +181,12 @@ void task_time_tick(void)
 
 void task_goto_sleep(task_t *task)
 {
+    if(!task)
+    {
+        dbg_warning("task is NULL");
+        return;
+    }
+    task->state = TASK_SLEEP;
     list_insert_last(&schedulor.sleep_list, &task->node);
 }
 

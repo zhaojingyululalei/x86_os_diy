@@ -20,6 +20,7 @@ void sys_mutex_lock (mutex_t * mutex) {
     } else {
         // 有其它任务占用，则进入队列等待
         set_cur_task(NULL);
+        curr->state = TASK_WAITING;
         list_insert_last(&mutex->wait_list, &curr->node);
         schedul();
     }

@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/source/lib",
-                "${workspaceFolder}/source/kernel"
+                "${workspaceFolder}/source/kernel",
+                "${workspaceFolder}/source/stdlib"
             ]
         }
     ],

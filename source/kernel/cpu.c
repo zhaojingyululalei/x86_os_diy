@@ -3,7 +3,7 @@
 #include "cpu_instr.h"
 #include "cpu_cfg.h"
 #include "irq/irq.h"
-
+#include "debug.h"
 seg_desc_t* gdt;
 gate_desc_t idt[IDT_ENTRYS_NUM];
 
@@ -74,7 +74,7 @@ int gdt_free_desc(int selector){
 /*
 *安装tss段
 */
-void gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit)
+int gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit)
 {
     seg_desc_t* g = gdt+(tss_sel>>3);
     g->p = 1;
@@ -86,8 +86,26 @@ void gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit)
 
     g->limit_15_0 = tss_limit & 0xFFFF;
     g->limit_19_6 = (tss_limit >> 16)&0xF;
+
+    return 0;
+}
+/**
+ * 安装调用门call_gate
+ */
+int gdt_set_call(int call_sel,int selector,int parm_count,ph_addr_t base)
+{
+    gate_desc_t* g = (gate_desc_t*)gdt+(call_sel>>3);
+    g->p = 1;
+    g->DPL = GATE_DPL3;
+    g->param = parm_count;
+    g->type = GATE_SYSCALL_TYPE_GDT;
+    g->offset_15_0 = base & 0xFFFF;
+    g->offset_31_16 = (base >>16)&0xFFFF;
+    g->selector = selector;
+    return 0;
 }
 
+extern void exception_handler_syscall(void);
 void gdt_init(void)
 {
     for(int i = boot_inform->gdt_entry_nr;i<GDT_ENTRYS_NUM;++i)
@@ -95,6 +113,15 @@ void gdt_init(void)
         gdt[i].v_low=0;
         gdt[i].v_high=0;
     }
+
+    //安装调用门
+    int call_sel = gdt_alloc_desc();
+    if((call_sel>>3) != (SELECTOR_CALL_GATE>>3))
+    {
+        dbg_error("call selector alloc fail\r\n");
+        hlt();
+    }
+    gdt_set_call(call_sel,SELECTOR_KERNEL_CODE_SEG,CALL_GATE_PRAM_COUNT,exception_handler_syscall);
 }
 void cpu_init(void)
 {

@@ -14,12 +14,15 @@ ASFLAGS := -g -m32
 #连接器
 LD := ${TOOL_PREFIX}ld
 
-
+#归档
+AR = ${TOOL_PREFIX}ar
 
 #其他工具
 OBJCOPY_TOOL := ${TOOL_PREFIX}objcopy
 OBJDUMP_TOOL := ${TOOL_PREFIX}objdump
 READELF_TOOL := ${TOOL_PREFIX}readelf
+
+
 
 
 

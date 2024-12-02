@@ -24,7 +24,8 @@
 			"err.h": "c",
 			"task.h": "c",
 			"mutex.h": "c",
-			"math.h": "c"
+			"math.h": "c",
+			"stdlib.h": "c"
 		}
 	}
 }

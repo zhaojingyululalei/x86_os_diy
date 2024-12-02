@@ -73,7 +73,8 @@ void irq_leave_protection(irq_state_t state);
 
 void cpu_init(void);
 gate_desc_t *get_idt_gate_desc(int irq_num);
-void gdt_set_tss(int tss_sel, ph_addr_t tss_base, uint32_t tss_limit);
+int gdt_set_tss(int tss_sel,ph_addr_t tss_base,uint32_t tss_limit);
+int gdt_set_call(int call_sel,int selector,int parm_count,ph_addr_t base);
 int gdt_alloc_desc(void);
 int gdt_free_desc(int selector);
 #endif

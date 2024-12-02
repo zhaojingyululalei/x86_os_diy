@@ -94,7 +94,7 @@ void pid_free(pidalloc_t *alloc, int pid);
 void pidalloc_print(pidalloc_t *alloc);
 
 /*task*/
-int task_init(task_t *task,int type,ph_addr_t entry,ph_addr_t esp,task_attr_t *attr);
+int task_init(task_t *task,int type,ph_addr_t entry,task_attr_t *attr);
 task_t* task_alloc(void);
 void task_free(task_t* task);
 void create_kernel_process(task_t* task,process_func_t func);
@@ -118,4 +118,5 @@ void task_wakeup(task_t* task);
 
 /*系统调用*/
 int sys_sleep_ms(int time);
+int sys_getpid(void);
 #endif

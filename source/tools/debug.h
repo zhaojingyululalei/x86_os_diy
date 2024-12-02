@@ -3,6 +3,8 @@
 
 #include <stdarg.h>
 
+#define MAX_STR_BUF_SIZE 256
+
 #define DBG_LEVEL_CTL_SET       3           //这里手动设置
 /*debug输出到哪*/
 #define DBG_OUTPUT_SERIAL

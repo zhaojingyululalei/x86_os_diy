@@ -2,14 +2,17 @@ include ../../Makefile.common
 
 # 手动配置项
 PROJECT := kernel
-INCLUDE := ../os_config  ../lib ./dev ../tools ./
+INCLUDE := ../os_config  ../lib ./dev ../tools ./ ../applib
 SRCDIR := ../tools ../lib
 LIBDIR := 
 
 # 查找库文件并生成链接选项
 LIB := $(shell find $(LIBDIR) -name '*.a')
-LIBS := $(patsubst %,-L%,${LIBDIR})
-LFLAGS := $(patsubst lib%.a,-l%,${LIB})
+LIB_PATHS := $(sort $(dir $(LIB)))   # 提取库文件所在的目录
+LIB_NAMES := $(notdir $(LIB))       # 提取库文件名
+
+LIBS := $(addprefix -L, $(LIB_PATHS))       # 生成 -L 参数
+LFLAGS := $(patsubst lib%.a,-l%, $(LIB_NAMES)) # 生成 -l 参数
 LFLAGS += -melf_i386 -Tkernel.lds
 
 # 路径配置
@@ -60,7 +63,7 @@ $(IMAGE_DIR):
 
 # 链接目标文件生成 elf 文件
 $(OUT): $(OBJS)
-	$(LD) $(LFLAGS) $(LIBS) $(OBJS) -o $@
+	$(LD) $(OBJS) $(LIBS) $(LFLAGS) -o $@
 
 # 自动包含依赖文件
 -include $(DEPS)

@@ -14,6 +14,7 @@ void sys_sem_wait (sem_t * sem) {
     } else {
         // 从就绪队列中移除，然后加入信号量的等待队列
         task_t * curr = get_cur_task();
+        curr->state = TASK_WAITING;
         list_insert_last(&sem->wait_list, &curr->node);
         set_cur_task(NULL);
         schedul();

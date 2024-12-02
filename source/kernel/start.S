@@ -86,3 +86,40 @@ exception_handler smd_exception, 19, 0
 exception_handler virtual_exception, 20, 0
 
 exception_handler timer, 0x20, 0
+
+
+
+    .global exception_handler_syscall
+    .extern do_handler_syscall
+exception_handler_syscall:
+	
+	pusha
+	push %ds
+	push %es
+	push %fs
+	push %gs
+	pushf
+
+	# call完gate_sel之后，只有CS变成了内核的代码段，其他数据段需要手动改成内核代码段
+	mov $(SELECTOR_KERNEL_DATA_SEG),%eax
+	mov %eax, %ds
+	mov %eax, %es
+	mov %eax, %fs
+	mov %eax, %gs
+
+    # 调用处理函数,传入异常栈指针作为参数
+    mov %esp, %eax
+    push %eax
+	call do_handler_syscall
+	add $4, %esp
+
+    
+	popf
+	pop %gs
+	pop %fs
+	pop %es
+	pop %ds
+	popa
+	
+	# 5个参数，加上5*4
+    retf $(5*4)    
