@@ -4,5 +4,6 @@
 #define SYS_msleep 0
 #define SYS_getpid 1
 #define SYS_printf_tmp 2
+#define SYS_fork 3
 #endif
 

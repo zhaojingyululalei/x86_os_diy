@@ -29,6 +29,7 @@ typedef union _pde_t {
     };
 }pde_t;
 
+#define PTE_IGNORE_COPY_ON_WRITE    1
 /**
  * @brief Page-Table Entry
  */
@@ -44,7 +45,7 @@ typedef union _pte_t {
         uint32_t dirty : 1;                     // 6 (D) Dirty
         uint32_t pat : 1;                       // 7 PAT
         uint32_t global : 1;                    // 8 (G) Global
-        uint32_t : 3;                           // Ignored
+        uint32_t ignore : 3;                    // Ignored
         uint32_t phy_page_addr : 20;            // 高20位物理地址
     };
 }pte_t;
@@ -53,6 +54,14 @@ typedef union _pte_t {
 void mmu_test(void);
 void kernel_pgd_create(void);
 int mmu_memory_map(pde_t page_dir[] ,ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
-int mmu_get_phaddr(ph_addr_t vm) ;
+ph_addr_t mmu_get_phaddr(pde_t page_dir[],ph_addr_t vm) ;
 ph_addr_t mmu_create_task_pgd(void);
+
+pte_t* mmu_from_vm_get_pte(pde_t page_dir[],ph_addr_t vm);
+pde_t *mmu_from_vm_get_pde(pde_t page_dir[],ph_addr_t vm);
+
+void mmu_cpy_page_dir(pde_t from[], pde_t to[], ph_addr_t start_vm, int page_count);
+
+
+
 #endif

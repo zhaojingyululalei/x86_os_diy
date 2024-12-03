@@ -4,6 +4,7 @@
 #include "mem_addr_cfg.h"
 #define MEM_TOTAL_SIZE  (128*1024*1024)
 #define USR_STACK_TOP   0xFFFFF000
+#define USR_ENTRY_BASE  0x80000000
 //GDT描述符格式
 #define GDT_DESC_LIMIT_0_15_POS    0
 #define GDT_DESC_BASE_0_15_POS     16

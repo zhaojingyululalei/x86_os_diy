@@ -12,6 +12,6 @@ typedef struct _syscall_args_t {
 int sleep(int ms);
 int getpid(void);
 void printf_tmp(char* fmt, int arg);
-
+int fork(void);
 #endif
 

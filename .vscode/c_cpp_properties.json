@@ -6,7 +6,7 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/source/lib",
                 "${workspaceFolder}/source/kernel",
-                "${workspaceFolder}/source/stdlib"
+                "${workspaceFolder}/source/applib"
             ]
         }
     ],

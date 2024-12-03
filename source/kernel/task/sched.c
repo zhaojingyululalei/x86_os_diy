@@ -17,7 +17,7 @@ static void idle_func(void)
 }
 static idle_task_init(void)
 {
-    task_init(&schedulor.idle_task, KERNEL, idle_func, NULL);
+    task_init(&schedulor.idle_task, KERNEL, idle_func, NULL,NULL);
 }
 void first_task_init(void)
 {
@@ -30,7 +30,7 @@ void first_task_init(void)
     ph_addr_t f_task_end_vm = &e_first_task_vm;
     uint32_t code_page_count =  (f_task_end_ph - f_task_start_ph + MEM_PAGE_SIZE -1)/MEM_PAGE_SIZE;
     ph_addr_t first_start = (ph_addr_t)first_task_entry;
-    task_init(&schedulor.first_task, USR, first_start, NULL);
+    task_init(&schedulor.first_task, USR, first_start, NULL,NULL);
     //分配进程空间
     mmblock(&schedulor.first_task,first_start,code_page_count);
     //将用户部分代码拷贝过去

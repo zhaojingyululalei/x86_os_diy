@@ -53,3 +53,9 @@ void printf_tmp(char* fmt, int arg)
     args.arg1 = arg;
     return sys_call(&args);
 }
+
+int fork(void) {
+    syscall_args_t args;
+    args.id = SYS_fork;
+    return sys_call(&args);
+}

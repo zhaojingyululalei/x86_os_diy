@@ -18,7 +18,7 @@ static void dump_core_regs (exception_frame_t * frame) {
     }
 
     dbg_info("IRQ: %d, error code: %d.\r\n", frame->num, frame->error_code);
-    dbg_info("CS: %d\r\nDS: %d\r\nES: %d\r\nSS: %d\r\nFS:%d\r\nGS:%d\r\n",
+    dbg_info("CS: %x\r\nDS: %x\r\nES: %x\r\nSS: %x\r\nFS:%x\r\nGS:%x\r\n",
                frame->cs, frame->ds, frame->es, ss, frame->fs, frame->gs
     );
     dbg_info("EAX:0x%x\r\n"
@@ -133,20 +133,58 @@ void do_handler_general_protection(exception_frame_t * frame) {
         }
     }
 }
+#include "mem/memory.h"
+#include "task/task.h"
+#include "math.h"
+/*处理fork的写时复制 */
+void PF_handler_copy_on_write(ph_addr_t PF_vm)
+{
+    task_t* cur_task = get_cur_task();
+    pte_t* PF_pte = mmu_from_vm_get_pte((pde_t*)task_get_page_dir(cur_task),PF_vm);
+    //只读页，才是cow
+    if(PF_pte->write_disable == 1) //如果该页不是只读
+    {
+        return;
+    }
+    if(PF_pte->ignore == PTE_IGNORE_COPY_ON_WRITE)
+    {
+        //是copy on write导致的
+        //重新分配一块内存
+        dbg_info("handle cow\r\n");
+        PF_pte->v = 0;
+        //分配并建立映射关系
+        mmblock(cur_task,PF_vm,1);
 
+        //复制父进程的内容
+        task_t* parent = task_get_parent(cur_task);
+        ph_addr_t phm = mmu_get_phaddr((pde_t*)task_get_page_dir(parent),PF_vm);
+        ph_addr_t dest_vm = align_down_to(PF_vm,MEM_PAGE_SIZE);
+        ph_addr_t dest = mmu_get_phaddr((pde_t*)cur_task->tss.cr3,dest_vm);
+        ph_addr_t src = align_down_to(phm,MEM_PAGE_SIZE);
+        memcpy(dest,src,MEM_PAGE_SIZE);
+
+    }
+    return;
+
+}
 void do_handler_page_fault(exception_frame_t * frame) {
+    ph_addr_t PF_vm = read_cr2(); //发生错误的虚拟地址
+    task_t* cur_task = get_cur_task();
+    ph_addr_t phys_addr = mmu_get_phaddr(task_get_page_dir(get_cur_task()), PF_vm);
+    pte_t* PF_pte = mmu_from_vm_get_pte((pde_t*)task_get_page_dir(cur_task),PF_vm);
     dbg_info("--------------------------------\r\n");
     dbg_info("IRQ/Exception happend: Page fault.\r\n");
     if (frame->error_code & ERR_PAGE_P) {
-        dbg_info("\tPage-level protection violation: 0x%x.\r\n", read_cr2());
+        dbg_info("\tPage-level protection violation: 0x%x.\r\n", PF_vm);
     } else {
-         dbg_info("\tPage doesn't present: 0x%x.\r\n", read_cr2());
+         dbg_info("\tPage doesn't present: 0x%x.\r\n", PF_vm);
     }
     
     if (frame->error_code & ERR_PAGE_WR) {
-        dbg_info("\tThe access causing the fault was a read.\r\n");
-    } else {
         dbg_info("\tThe access causing the fault was a write.\r\n");
+        PF_handler_copy_on_write(PF_vm);
+    } else {
+        dbg_info("\tThe access causing the fault was a read.\r\n");
     }
     
     if (frame->error_code & ERR_PAGE_US) {

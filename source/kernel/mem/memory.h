@@ -3,6 +3,7 @@
 
 #include "mm_block.h"
 #include "mmu/mmu.h"
+#include "string.h"
 
 void memory_init(void);
 

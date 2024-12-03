@@ -57,7 +57,7 @@ void kernel_init(boot_info_t *boot_info)
     sched_init();
     timer_init();
 
-    create_kernel_process(&second_task,second_func);
+   //create_kernel_process(&second_task,second_func);
 
     first_task_init();
     irq_enable_global();

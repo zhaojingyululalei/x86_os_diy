@@ -25,7 +25,9 @@
 			"task.h": "c",
 			"mutex.h": "c",
 			"math.h": "c",
-			"stdlib.h": "c"
+			"stdlib.h": "c",
+			"memory.h": "c",
+			"executor": "c"
 		}
 	}
 }
