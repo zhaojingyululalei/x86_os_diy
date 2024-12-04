@@ -34,14 +34,14 @@ typedef struct _memblock_t {
 /*所有操作都是以页为单位，后续实现malloc才不以页为单位*/
 void memblock_init(void);
 int mm_free_pages(ph_addr_t addr,uint32_t n);
-//分配连续的几页内存---物理地址操作
+//分配连续的几页内存---物理地址操作  需要上锁
 ph_addr_t mm_alloc_pages(uint32_t n);
 ph_addr_t mm_alloc_one_page(void);
 int mm_free_one_page(ph_addr_t addr);
 
 //虚拟地址操作
-//给某个进程的虚拟地址开辟空间
+//给某个进程的虚拟地址开辟空间，操作的都是任务自己的页表，互不干扰，不上锁
 #include "mmu/mmu.h"
 int mmblock(task_t* task,ph_addr_t vm_start,uint32_t n);
-
+int mmfree(task_t* task,ph_addr_t vm_start,uint32_t n);
 #endif

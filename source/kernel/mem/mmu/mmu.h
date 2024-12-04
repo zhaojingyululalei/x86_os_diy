@@ -56,6 +56,7 @@ void kernel_pgd_create(void);
 int mmu_memory_map(pde_t page_dir[] ,ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
 ph_addr_t mmu_get_phaddr(pde_t page_dir[],ph_addr_t vm) ;
 ph_addr_t mmu_create_task_pgd(void);
+int mmu_destory_task_pgd(pde_t page_dir[]);
 
 pte_t* mmu_from_vm_get_pte(pde_t page_dir[],ph_addr_t vm);
 pde_t *mmu_from_vm_get_pde(pde_t page_dir[],ph_addr_t vm);

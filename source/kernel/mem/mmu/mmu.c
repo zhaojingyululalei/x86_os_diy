@@ -118,7 +118,7 @@ ph_addr_t mmu_create_task_pgd(void)
     ph_addr_t page_dir = mm_alloc_one_page();
     if (page_dir < 0)
     {
-        return -1;
+        return 0;
     }
     // 然后就是拷贝内核页表
     pde_t *pde_dest = (pde_t *)page_dir;
@@ -144,7 +144,38 @@ ph_addr_t mmu_create_task_pgd(void)
     }
     return page_dir;
 }
-
+int mmu_destory_task_pgd(pde_t page_dir[])
+{
+    int ret = 0;
+    pde_t *pde_cur = page_dir;
+    for (int i = 0; i < 1024; i++, pde_cur++)
+    {
+        if (pde_cur->present)
+        {
+            pte_t *pte_cur = (pte_t *)(pde_cur->phy_pt_addr << 12);
+            for (int j = 0; j < 1024; ++j, pte_cur++)
+            {
+                if (pte_cur->present)
+                {
+                    ph_addr_t phm = pte_cur->phy_page_addr << 12;
+                    ret = mm_free_one_page(phm);
+                    if (ret < 0)
+                    {
+                        return ret;
+                    }
+                    pte_cur->v = 0;
+                }
+            }
+            ret = mm_free_one_page((ph_addr_t)(pde_cur->phy_pt_addr << 12));
+            if (ret < 0)
+            {
+                return ret;
+            }
+            pde_cur->v = 0;
+        }
+    }
+    return 0;
+}
 pte_t *mmu_from_vm_get_pte(pde_t page_dir[], ph_addr_t vm)
 {
     if (page_dir == NULL)
@@ -194,14 +225,14 @@ void mmu_cpy_page_dir(pde_t from[], pde_t to[], ph_addr_t start_vm, int page_cou
             ph_addr_t page_table = mm_alloc_one_page();
             pde_dest->phy_pt_addr = page_table >> 12;
 
-            for (; ; )
+            for (;;)
             {
                 pte_t *pte_dest = mmu_from_vm_get_pte(to, vm);
                 pte_t *pte_src = mmu_from_vm_get_pte(from, vm);
                 if (pte_src->present)
                 {
                     pte_dest->v = pte_src->v;
-                    ph_addr_t src_ph = pte_src->phy_page_addr<<12;
+                    ph_addr_t src_ph = pte_src->phy_page_addr << 12;
                     ph_addr_t dest_ph = mm_alloc_one_page();
                     memcpy((uint8_t *)dest_ph, (uint8_t *)src_ph, MEM_PAGE_SIZE);
                     pte_dest->phy_page_addr = dest_ph >> 12;
@@ -211,13 +242,12 @@ void mmu_cpy_page_dir(pde_t from[], pde_t to[], ph_addr_t start_vm, int page_cou
                         break;
                     }
                 }
-                vm+=MEM_PAGE_SIZE;
+                vm += MEM_PAGE_SIZE;
             }
         }
     }
     return;
 }
-
 
 void mmu_test(void)
 {

@@ -28,8 +28,8 @@ SECTIONS
     PROVIDE(s_first_task_ph = LOADADDR(.first_task));
     PROVIDE(s_first_task_vm = ADDR(.first_task));
     .first_task : AT(e_kernel) {
-		*first_task*(.text .data. rodata .data)
-    *stdlib*(.text .data. rodata .data)
+		*first_task*(.text .data .rodata .bss)
+    *stdlib*(.text .data .rodata .bss)
 	}
     PROVIDE(e_first_task_ph = LOADADDR(.first_task) + SIZEOF(.first_task));
     PROVIDE(e_first_task_vm = ADDR(.first_task) + SIZEOF(.first_task));

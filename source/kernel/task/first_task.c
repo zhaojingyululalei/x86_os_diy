@@ -1,12 +1,22 @@
 #include "stdlib.h"
+#include "types.h"
 int x=1;
 int first_task_main(void)
 {
     int count = 0;
-
+    int x = &count;
+    char* a = "hello";
+    char* b = "world";
+    char* c = "zhao";
+    char *d = "yu";
+    char* env[3] = {c,d,NULL};
+    char* argv[3] = {a,b,NULL};
     int ret = fork();
     if (ret == 0)
     {
+        printf_tmp("child task id %d\r\n", getpid());
+        execve("shell.elf", argv, env);
+        printf_tmp("create shell proc failed", 0);
         while (1)
         {
             printf_tmp("child task id %d\r\n", getpid());

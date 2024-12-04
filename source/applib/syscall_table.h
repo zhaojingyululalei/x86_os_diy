@@ -5,5 +5,6 @@
 #define SYS_getpid 1
 #define SYS_printf_tmp 2
 #define SYS_fork 3
+#define SYS_execve 4
 #endif
 

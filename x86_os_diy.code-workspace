@@ -27,7 +27,8 @@
 			"math.h": "c",
 			"stdlib.h": "c",
 			"memory.h": "c",
-			"executor": "c"
+			"executor": "c",
+			"fs.h": "c"
 		}
 	}
 }

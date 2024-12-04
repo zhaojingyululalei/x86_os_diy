@@ -2,6 +2,9 @@
 #include "syscall_table.h"
 #include "cpu_cfg.h"
 /**
+ * 直接-L -l的话，这些函数重定位不在0x80000000以上范围内。而是在内核区。用户掉不了。
+ */
+/**
  * 执行系统调用
  */
 static inline int sys_call (syscall_args_t * args) {
@@ -57,5 +60,14 @@ void printf_tmp(char* fmt, int arg)
 int fork() {
     syscall_args_t args;
     args.id = SYS_fork;
+    return sys_call(&args);
+}
+
+int execve(const char *path, char * const *argv, char * const *env) {
+    syscall_args_t args;
+    args.id = SYS_execve;
+    args.arg0 = (int)path;
+    args.arg1 = (int)argv;
+    args.arg2 = (int)env;
     return sys_call(&args);
 }

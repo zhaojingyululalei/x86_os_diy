@@ -2,6 +2,7 @@
 #define __CPU_CFG_H
 
 #include "mem_addr_cfg.h"
+#include "blk_cfg.h"
 #define MEM_TOTAL_SIZE  (128*1024*1024)
 #define USR_STACK_TOP   0xFFFFF000
 #define USR_ENTRY_BASE  0x80000000
