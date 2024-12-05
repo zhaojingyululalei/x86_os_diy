@@ -37,11 +37,13 @@ typedef struct _task_attr_t{
     int time_slice;			// 时间片
     uint32_t stack_size;
 }task_attr_t;
-
+#define TASK_NOT_COLLECT 0
+#define TASK_COLLECTING 1
 typedef struct _task_t
 {
     enum 
     {
+        TASK_NONE,
         TASK_CREATED,
         TASK_RUNNING,
         TASK_SLEEP,
@@ -63,13 +65,15 @@ typedef struct _task_t
     tss_t tss;
     uint16_t tss_sel;
     list_node_t node;
+    list_node_t all_node; //创建就加入all list，直到wait，才离开
 
     int sleep_ticks;		// 睡眠时间
     
 	int slice_ticks;		// 递减时间片计数
 
     struct _task_t* parent;
-
+    int status;
+    int wait_flag; //父进程正在回收子进程的标志
 
 
 
@@ -81,6 +85,7 @@ typedef struct _schedulor_t
 
     list_t ready_list;
     list_t sleep_list;
+    list_t all_list;
 
     task_t idle_task;
     task_t first_task;
@@ -106,7 +111,10 @@ static inline task_t* task_get_parent(task_t* task)
 {
     return task->parent;
 }
-
+task_t* task_all_list_get_first();
+task_t* task_all_list_get_next(task_t* cur);
+task_t* get_init_task();
+void task_collect(task_t* task);
 /**
  * 任务调度
  **/
@@ -117,7 +125,9 @@ task_t* get_cur_task(void);
 void set_cur_task(task_t* task);
 task_t* get_ready_task(void);
 void set_task_to_ready_list(task_t* task);
+void set_task_to_all_list(task_t* task);
 void remove_task_from_ready_list(task_t* task);
+void remove_task_from_all_list(task_t* task);
 void schedul(void);
 void task_time_tick(void);
 void task_goto_sleep(task_t* task);
@@ -128,4 +138,7 @@ int sys_sleep_ms(int time);
 int sys_getpid(void);
 int sys_fork(void);
 int sys_execve(const char *path, char *const *argv, char *const *env) ;
+int sys_yield(void);
+void sys_exit(int status);
+int sys_wait(int* status) ;
 #endif

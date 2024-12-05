@@ -94,7 +94,7 @@ int task_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task
     else
     {
         task->attr.sched_policy = TASK_SCHED_POLICY_DEFAULT;
-        task->attr.stack_size = 2*MEM_PAGE_SIZE;
+        task->attr.stack_size = 2 * MEM_PAGE_SIZE;
         task->slice_ticks = task->attr.time_slice = TASK_TIME_SLICE_DEFAULT;
     }
     int ret;
@@ -106,9 +106,10 @@ int task_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task
     }
     task->pid = pid_alloc(&pidallocter);
     task->type = type;
-    task->state = TASK_CREATED;
     task->entry = entry;
-
+    task->status = 0;
+    task->wait_flag = TASK_NOT_COLLECT;
+    set_task_to_all_list(task);
     return 0;
 }
 
@@ -127,7 +128,7 @@ task_t *task_alloc(void)
 
 void task_free(task_t *task)
 {
-    task->type = TASKNONE;
+    memset(task, 0, sizeof(task_t));
 }
 
 void create_kernel_process(task_t *task, process_func_t func)
@@ -206,7 +207,7 @@ int sys_fork(void)
     pde_t *parent_pgd_end = mmu_from_vm_get_pde(parent_pgd, stack_start);
     pde_t *child_start_pgd = mmu_from_vm_get_pde(child_pgd, USR_ENTRY_BASE);
 
-    // 遍历用户空间页目录
+    // 遍历用户空间页目录，内核空间不用管
     for (pde_t *p = parent_start_pgd, *c = child_start_pgd; p < parent_pgd_end; p++, c++)
     {
         if (!p->present)
@@ -257,36 +258,39 @@ int sys_fork(void)
  * 返回应用入口地址
  */
 
-static int load_phdr(int fd,Elf32_Phdr* phdr,task_t* task)
+static int load_phdr(int fd, Elf32_Phdr *phdr, task_t *task)
 {
     int ret;
     ph_addr_t start_vm = phdr->p_vaddr;
     uint32_t memsize = phdr->p_memsz;
-    memsize = align_up_to(memsize,MEM_PAGE_SIZE);
+    memsize = align_up_to(memsize, MEM_PAGE_SIZE);
     int block = memsize / MEM_PAGE_SIZE;
-    ret = mmblock(task,start_vm,block);
-    if(ret < 0)
+    ret = mmblock(task, start_vm, block);
+    if (ret < 0)
     {
         dbg_error("mmblock err\r\n");
         return -1;
     }
 
     // 调整当前的读写位置
-    if (sys_lseek(fd, phdr->p_offset, 0) < 0) {
+    if (sys_lseek(fd, phdr->p_offset, 0) < 0)
+    {
         dbg_error("read file failed");
         return -1;
     }
 
-    //拷贝程序
+    // 拷贝程序
     uint32_t vaddr = phdr->p_vaddr;
     uint32_t size = phdr->p_filesz;
-    while (size > 0) {
+    while (size > 0)
+    {
         int curr_size = (size > MEM_PAGE_SIZE) ? MEM_PAGE_SIZE : size;
 
-        uint32_t paddr = mmu_get_phaddr(task->tss.cr3,vaddr);
+        uint32_t paddr = mmu_get_phaddr(task->tss.cr3, vaddr);
 
         // 注意，这里用的页表仍然是当前的
-        if (sys_read(fd, (char *)paddr, curr_size) != curr_size) {
+        if (sys_read(fd, (char *)paddr, curr_size) != curr_size)
+        {
             dbg_error("read file failed");
             return -1;
         }
@@ -294,15 +298,13 @@ static int load_phdr(int fd,Elf32_Phdr* phdr,task_t* task)
         size -= curr_size;
         vaddr += curr_size;
     }
-    //存在bss区
-    if(phdr->p_memsz>phdr->p_filesz)
+    // 存在bss区
+    if (phdr->p_memsz > phdr->p_filesz)
     {
-        //清零
-        memset(vaddr,0,phdr->p_memsz-phdr->p_filesz);
+        // 清零
+        memset(vaddr, 0, phdr->p_memsz - phdr->p_filesz);
     }
     return 0;
-
-
 }
 static ph_addr_t load_app_elf(task_t *task, const char *path)
 {
@@ -386,7 +388,6 @@ static ph_addr_t load_app_elf(task_t *task, const char *path)
             dbg_error("load program hdr failed");
             return 0;
         }
-
     }
 
     sys_close(fd);
@@ -394,31 +395,32 @@ static ph_addr_t load_app_elf(task_t *task, const char *path)
     return entry;
 }
 
-static ph_addr_t cpy_argv(ph_addr_t stack_base_ph, char *const *argv,int* argc)
+static ph_addr_t cpy_argv(ph_addr_t stack_base_ph, char *const *argv, int *argc)
 {
-    if(argv == NULL)
+    if (argv == NULL)
     {
         return 0;
     }
     ph_addr_t *cur_pos = (ph_addr_t *)stack_base_ph; // 指向新栈的起始位置，用于存储指针
-    char *content_pos = (char *)(cur_pos + 128);   // 假设 argv 的内容从指针区域后开始（预留空间）
+    char *content_pos = (char *)(cur_pos + 128);     // 假设 argv 的内容从指针区域后开始（预留空间）
     char **cur_ptr = argv;
 
-    //复制参数指针（指向新栈中的内容区域）
-    while (*cur_ptr) {
-        uint32_t len = strlen(*cur_ptr) + 1; //算上 '/0'
-        if(len >= 76)
+    // 复制参数指针（指向新栈中的内容区域）
+    while (*cur_ptr)
+    {
+        uint32_t len = strlen(*cur_ptr) + 1; // 算上 '/0'
+        if (len >= 76)
         {
             dbg_error("argv len is so long\r\n");
             return 0;
         }
-        *cur_pos = (ph_addr_t)content_pos; 
-        strncpy(content_pos, *cur_ptr, len); 
-        content_pos += len; 
-        cur_pos++;          
+        *cur_pos = (ph_addr_t)content_pos;
+        strncpy(content_pos, *cur_ptr, len);
+        content_pos += len;
+        cur_pos++;
         cur_ptr++;
-        *argc+=1;
-        if(*argc ==20)
+        *argc += 1;
+        if (*argc == 20)
         {
             dbg_error("too much argv count");
             return 0;
@@ -431,7 +433,6 @@ static ph_addr_t cpy_argv(ph_addr_t stack_base_ph, char *const *argv,int* argc)
     // 返回最终的新栈基地址
     return (ph_addr_t)cur_pos;
 }
-
 
 int sys_execve(const char *path, char *const *argv, char *const *env)
 {
@@ -448,76 +449,176 @@ int sys_execve(const char *path, char *const *argv, char *const *env)
         return -1;
     }
 
-    //在切换页表前，处理参数，否则页表切换后，参数没了
-    task_attr_t* cur_attr = &cur_task->attr;
+    // 在切换页表前，处理参数，否则页表切换后，参数没了
+    task_attr_t *cur_attr = &cur_task->attr;
     ph_addr_t stack_base_vm = USR_STACK_TOP - cur_attr->stack_size;
     int stack_page_count = cur_attr->stack_size / MEM_PAGE_SIZE;
     ph_addr_t stack_base_ph = mm_alloc_pages(stack_page_count);
-    if(stack_base_ph == NULL)
+    if (stack_base_ph == NULL)
     {
         dbg_error("execve alloc stack space fail\r\n");
         irq_leave_protection(state);
         return -1;
     }
-    int argc = 0,envc = 0;
-    char** new_argv = stack_base_ph;
-    ph_addr_t cur_pos = cpy_argv(stack_base_ph,argv,&argc);
-    if(cur_pos == NULL)
+    int argc = 0, envc = 0;
+    char **new_argv = stack_base_ph;
+    ph_addr_t cur_pos = cpy_argv(stack_base_ph, argv, &argc);
+    if (cur_pos == NULL)
     {
-        dbg_error("execve cpyarg fail\r\n");
-        irq_leave_protection(state);
-        return -1;
+        dbg_warning("argv execve cpyarg fail\r\n");
     }
-    char** new_env = stack_base_ph+2048;
-    ph_addr_t test_tmp = cpy_argv(stack_base_ph+2048,env,&envc);
-    if(test_tmp == NULL)
+    char **new_env = stack_base_ph + 2048;
+    ph_addr_t test_tmp = cpy_argv(stack_base_ph + 2048, env, &envc);
+    if (test_tmp == NULL)
     {
-        dbg_error("execve cpyarg fail\r\n");
-        irq_leave_protection(state);
-        return -1;
+        dbg_warning("env execve cpyarg fail\r\n");
     }
     ph_addr_t stack_top_ph = stack_base_ph + cur_attr->stack_size;
 
-    char new_path[128] ;
-    strncpy(new_path,path,strlen(path));
+    char new_path[128];
+    strncpy(new_path, path, strlen(path));
 
-    //argc 和 argv复制到栈顶
-    *((uint32_t*)(stack_top_ph-sizeof(ph_addr_t))) = stack_base_vm;
-    *((uint32_t*)(stack_top_ph-sizeof(ph_addr_t)*2)) = argc;
+    // argc 和 argv复制到栈顶
+    *((uint32_t *)(stack_top_ph - sizeof(ph_addr_t))) = stack_base_vm;
+    *((uint32_t *)(stack_top_ph - sizeof(ph_addr_t) * 2)) = argc;
 
-    ph_addr_t stack_top = USR_STACK_TOP - sizeof(ph_addr_t)*2;
+    ph_addr_t stack_top = USR_STACK_TOP - sizeof(ph_addr_t) * 2;
 
-    //处理完参数后，切换新页表，销毁旧页表
+    // 处理完参数后，切换新页表，销毁旧页表
     cur_task->tss.cr3 = new_page_dir;
     write_cr3(new_page_dir);
-    irq_leave_protection(state);
-    mmu_destory_task_pgd((pde_t *)old_page_dir);
+    //mmu_destory_task_pgd((pde_t *)old_page_dir);
 
-    //加载程序
-    entry = load_app_elf(cur_task,new_path);
-    if(entry == NULL)
+    // 加载程序
+    entry = load_app_elf(cur_task, new_path);
+    if (entry == NULL)
     {
         dbg_error("load app elf fail\r\n");
+        irq_leave_protection(state);
         return -1;
     }
 
-    //给栈空间建立虚拟地址映射关系（因为是新页表了）
+    // 给栈空间建立虚拟地址映射关系（因为是新页表了）
     for (int i = 0; i < stack_page_count; i++)
     {
-        mmu_memory_map(cur_task->tss.cr3,stack_base_vm,stack_base_ph,1,1);
-        stack_base_ph +=MEM_PAGE_SIZE;
+        mmu_memory_map(cur_task->tss.cr3, stack_base_vm, stack_base_ph, 1, 1);
+        stack_base_ph += MEM_PAGE_SIZE;
         stack_base_vm += MEM_PAGE_SIZE;
     }
 
-    syscall_frame_t * frame = (syscall_frame_t *)(cur_task->tss.esp0 - sizeof(syscall_frame_t));
+    syscall_frame_t *frame = (syscall_frame_t *)(cur_task->tss.esp0 - sizeof(syscall_frame_t));
     frame->eip = entry;
     frame->eax = frame->ebx = frame->ecx = frame->edx = 0;
     frame->esi = frame->edi = frame->ebp = 0;
-    frame->eflags = EFLAGS_DEFAULT| EFLAGS_IF;  // 段寄存器无需修改
+    frame->eflags = EFLAGS_DEFAULT | EFLAGS_IF; // 段寄存器无需修改
 
     // 内核栈不用设置，保持不变，后面调用memory_destroy_uvm并不会销毁内核栈的映射。
     // 但用户栈需要更改, 同样要加上调用门的参数压栈空间
-    frame->esp = stack_top - sizeof(uint32_t)*CALL_GATE_PRAM_COUNT;
-
+    frame->esp = stack_top - sizeof(uint32_t) * CALL_GATE_PRAM_COUNT;
+    irq_leave_protection(state);
     return 0;
+}
+
+int sys_yield(void)
+{
+    irq_state_t state = irq_enter_protection();
+
+    schedul();
+
+    irq_leave_protection(state);
+}
+
+void sys_exit(int status)
+{
+    irq_state_t state = irq_enter_protection();
+    task_t *cur_task = get_cur_task();
+    task_t *parent_task = task_get_parent(cur_task);
+
+    // 将该进程设置为僵尸进程，等待父进程回收
+    cur_task->state = TASK_ZOMBIE;
+    cur_task->status = status;
+
+    // 如果该进程还创建了其他子进程，其子进程的回收任务交给init进程
+    // 遍历all list链表，寻找其子进程
+    task_t *init_task = get_init_task();
+    int has_zomb_flag = 0;
+    task_t *ctask = task_all_list_get_first();
+    while (ctask)
+    {
+        if (ctask->parent == cur_task)
+        {
+            // 找到一个子进程,交给init进程
+            ctask->parent = init_task;
+            if (ctask->state == TASK_ZOMBIE)
+            {
+                has_zomb_flag = 1;
+            }
+        }
+        ctask = task_all_list_get_next(ctask);
+    }
+
+    // 唤醒init进程，回收
+    if (has_zomb_flag == 1 && init_task->state == TASK_WAITING && init_task->wait_flag == TASK_COLLECTING)
+    {
+        if (cur_task->parent != init_task)
+        {
+            // 注意，init进程只加入一次就绪队列
+            // 如果当前进程的父亲是Init进程，在下方将Init加入就绪队列即可
+            set_task_to_ready_list(init_task);
+        }
+    }
+
+    // 唤醒父进程回收
+    //  因为父亲可能在其他地方，例如Mutex或者sem处等，而并非wait回收子进程，不能一昧唤醒
+    if (parent_task->state == TASK_WAITING && parent_task->wait_flag == TASK_COLLECTING)
+    {
+        set_task_to_ready_list(parent_task);
+    }
+    set_cur_task(NULL);
+    schedul();
+    irq_leave_protection(state);
+}
+
+void task_collect(task_t *task)
+{
+    pde_t *pagedir = task_get_page_dir(task);
+    //mmu_destory_task_pgd(pagedir);
+    // 释放内核栈空间esp0
+    mmfree(task, task->tss.esp0 - task->attr.stack_size, task->attr.stack_size / MEM_PAGE_SIZE);
+    remove_task_from_all_list(task);
+    task_free(task);
+}
+/**
+ * 调用该函数，必须回收一个子进程
+ * 有就返回，没有死等
+ */
+int sys_wait(int *status)
+{
+    irq_state_t state = irq_enter_protection();
+    task_t *cur_task = get_cur_task();
+    // 孙子进程都处理好了，不用考虑,这里只考虑子进程
+    while (1)
+    {
+        task_t *ctask = task_all_list_get_first();
+        while (ctask)
+        {
+            // 如果该进程是子进程，并且是僵尸进程
+            if (ctask->parent == cur_task && ctask->state == TASK_ZOMBIE)
+            {
+                int pid = ctask->pid;
+                *status = ctask->status;
+                task_collect(ctask);
+                irq_leave_protection(state);
+                return pid;
+            }
+            ctask = task_all_list_get_next(ctask);
+        }
+
+        // 如果执行到这里，说明一个进程都没回收上，进入等待状态
+        cur_task->wait_flag = TASK_COLLECTING;
+        cur_task->state = TASK_WAITING;
+        set_cur_task(NULL);
+        schedul();
+        irq_leave_protection(state);
+    }
 }

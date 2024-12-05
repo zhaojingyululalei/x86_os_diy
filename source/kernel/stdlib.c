@@ -71,3 +71,32 @@ int execve(const char *path, char * const *argv, char * const *env) {
     args.arg2 = (int)env;
     return sys_call(&args);
 }
+
+int yield(void)
+{
+    syscall_args_t args;
+    args.id  = SYS_yield;
+    return sys_call(&args);
+}
+
+void exit(int status)
+{
+    syscall_args_t args;
+    args.id = SYS_exit;
+    args.arg0 = (int)status;
+    sys_call(&args);
+    //其实也不会运行到这里来，因为系统调用把该进程变成僵尸进程，没有被调度的机会了
+    while(1)
+    {
+        ;
+    }
+}
+
+int wait(int* status) {
+    int ret;
+    syscall_args_t args;
+    args.id = SYS_wait;
+    args.arg0 = (int)status;
+    ret = sys_call(&args);
+    return ret;
+}

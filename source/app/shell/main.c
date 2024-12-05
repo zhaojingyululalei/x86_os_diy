@@ -30,14 +30,8 @@ int main(int argc, char *argv[])
     // }
 
     int count = 0;
-    printf_tmp("Number of arguments: %d\r\n", argc);
-    for (int i = 0; i < argc; i++) {
-        printf_tmp("Argument  %s\r\n",  argv[i]);
-    }
-    while (1)
-    {
-        count++;
-        printf_tmp("count is %d\r\n", count);
-        sleep(1000);
-    }
+   
+    count++;
+    
+    return 0;
 }

@@ -128,37 +128,45 @@ ph_addr_t mmu_create_task_pgd(void)
         if (pde_src[i].present)
         {
             pde_dest[i].v = pde_src[i].v;
-            ph_addr_t page_table = mm_alloc_one_page();
-            pde_dest[i].phy_pt_addr = page_table >> 12;
+            // ph_addr_t page_table = mm_alloc_one_page();
+            // pde_dest[i].phy_pt_addr = page_table >> 12;
 
-            pte_t *pte_dest = (pte_t *)page_table;
-            pte_t *pte_src = (pte_t *)(pde_src[i].phy_pt_addr << 12);
-            for (int i = 0; i < 1024; ++i)
-            {
-                if (pte_src[i].present)
-                {
-                    pte_dest[i].v = pte_src[i].v;
-                }
-            }
+            // pte_t *pte_dest = (pte_t *)page_table;
+            // pte_t *pte_src = (pte_t *)(pde_src[i].phy_pt_addr << 12);
+            // for (int i = 0; i < 1024; ++i)
+            // {
+            //     if (pte_src[i].present)
+            //     {
+            //         pte_dest[i].v = pte_src[i].v;
+            //     }
+            // }
         }
     }
     return page_dir;
 }
+/**
+ * 销毁进程页表，释放进程内存
+ */
 int mmu_destory_task_pgd(pde_t page_dir[])
 {
+    //内核页表是共用的，内核数据代码部分不能释放。用户部分全部释放
+    int pde_start_idx = pde_index(USR_ENTRY_BASE);
+    int pte_start_idx = pte_index(USR_ENTRY_BASE);
     int ret = 0;
-    pde_t *pde_cur = page_dir;
-    for (int i = 0; i < 1024; i++, pde_cur++)
+     
+    for (int i = pde_start_idx; i < 1024; i++)
     {
+        pde_t *pde_cur = &page_dir[i];
         if (pde_cur->present)
         {
-            pte_t *pte_cur = (pte_t *)(pde_cur->phy_pt_addr << 12);
-            for (int j = 0; j < 1024; ++j, pte_cur++)
+            pte_t *pmd = (pte_t *)(pde_cur->phy_pt_addr << 12);
+            for (int j = pte_start_idx; j < 1024; ++j)
             {
+                pte_t* pte_cur = &pmd[j];
                 if (pte_cur->present)
                 {
                     ph_addr_t phm = pte_cur->phy_page_addr << 12;
-                    ret = mm_free_one_page(phm);
+                    ret = mm_free_one_page(phm); //释放代码数据内存
                     if (ret < 0)
                     {
                         return ret;
@@ -166,7 +174,7 @@ int mmu_destory_task_pgd(pde_t page_dir[])
                     pte_cur->v = 0;
                 }
             }
-            ret = mm_free_one_page((ph_addr_t)(pde_cur->phy_pt_addr << 12));
+            ret = mm_free_one_page((ph_addr_t)(pde_cur->phy_pt_addr << 12));//释放用户中间页表
             if (ret < 0)
             {
                 return ret;
@@ -174,6 +182,7 @@ int mmu_destory_task_pgd(pde_t page_dir[])
             pde_cur->v = 0;
         }
     }
+    mm_free_one_page((ph_addr_t)(page_dir));//释放页目录
     return 0;
 }
 pte_t *mmu_from_vm_get_pte(pde_t page_dir[], ph_addr_t vm)

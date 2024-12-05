@@ -14,5 +14,8 @@ int getpid(void);
 void printf_tmp(char* fmt, int arg);
 int fork(void);
 int execve(const char *path, char * const *argv, char * const *env) ;
+int yield(void);
+void exit(int status);
+int wait(int* status);
 #endif
 

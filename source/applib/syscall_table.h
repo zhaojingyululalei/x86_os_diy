@@ -6,5 +6,8 @@
 #define SYS_printf_tmp 2
 #define SYS_fork 3
 #define SYS_execve 4
+#define SYS_yield   5
+#define SYS_exit 6
+#define SYS_wait 7
 #endif
 
