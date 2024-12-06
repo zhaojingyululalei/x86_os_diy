@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
             printf_tmp("child task id=%d  ", pid);
         }
     }
-    return;
+    return 0;
     for (int i = 0; i < 2; i++)
     {
         int status, pid;
