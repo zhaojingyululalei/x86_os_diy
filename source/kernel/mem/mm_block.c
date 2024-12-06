@@ -266,6 +266,8 @@ int mm_free_one_page(ph_addr_t addr)
  */
 int mmblock(task_t *task, ph_addr_t vm_start, uint32_t n)
 {
+    ph_addr_t start_addr= align_down_to(vm_start,MEM_PAGE_SIZE);
+    vm_start = start_addr;
     // 获取进程自己的页目录
     ph_addr_t page_dir = task_get_page_dir(task);
     if (page_dir == NULL)

@@ -539,6 +539,7 @@ int sys_yield(void)
     irq_leave_protection(state);
 }
 
+
 void sys_exit(int status)
 {
     irq_state_t state = irq_enter_protection();
@@ -589,7 +590,6 @@ void sys_exit(int status)
     schedul();
     irq_leave_protection(state);
 }
-
 void task_collect(task_t *task)
 {
     pde_t *pagedir = task_get_page_dir(task);

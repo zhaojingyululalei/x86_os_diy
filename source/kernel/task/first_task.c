@@ -14,23 +14,21 @@ int first_task_main(void)
         pid = fork();
         if (pid < 0)
         {
-            printf_tmp("create child proc failed.\r\n", 0);
+            //printf_tmp("create child proc failed.\r\n", 0);
         }
         else if (pid == 0)
         {
-            printf_tmp("child: %d\r\n", getpid());
-
+            //printf_tmp("child: %d\r\n", getpid());
+            x = 2;
+            //printf_tmp("x = %d\r\n",x);
             char *argv[] = {"arg0", "arg1", "arg2", "arg3", NULL};
             execve("shell.elf", argv, (char **)0);
-            while (1)
-            {
-                ;
-            }
+            
         }
         else
         {
-            printf_tmp("child task id=%d  ", pid);
-            printf_tmp("parent: %d\r\n", count);
+            //printf_tmp("child task id=%d  ", pid);
+            //printf_tmp("parent: %d\r\n", count);
         }
     }
 
@@ -42,32 +40,7 @@ int first_task_main(void)
         printf_tmp("collect on child %d\r\n", pid);
     }
 
-    // for (int i = 0; i < 1; i++) {
-    //     int pid = fork();
-    //     if (pid < 0) {
-    //         printf_tmp("create shell proc failed", 0);
-    //         break;
-    //     } else if (pid == 0) {
-    //         // 子进程
-    //         char* a = "hello";
-    //         char* b = "world";
-    //         char* c = "zhao";
-    //         char* d = "yu";
-    //         char * argv[] = {a,b, NULL};
-    //         char* env[] = {c,d,NULL};
-    //         execve("shell.elf", argv, env);
-    //         printf_tmp("create shell proc failed", 0);
-    //         while (1) {
-    //             sleep(1000);
-    //         }
-    //     }
-    // }
-
-    // while (1)
-    // {
-    //     printf_tmp("task id is %d\r\n",getpid());
-    //     sleep(1000);
-    // }
+    
 
     return 0;
 }

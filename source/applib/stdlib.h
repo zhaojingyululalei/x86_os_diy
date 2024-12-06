@@ -1,6 +1,6 @@
 #ifndef __STDLIB_H
 #define __STDLIB_H
-
+#include "types.h"
 typedef struct _syscall_args_t {
     int id;
     int arg0;

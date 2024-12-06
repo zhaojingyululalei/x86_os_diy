@@ -2,36 +2,44 @@
 int x = 0;
 int main(int argc, char *argv[])
 {
+    printf_tmp("shell create some child\r\n",1);
+  
 
-    // int ret = fork();
-    // if (ret == 0)
-    // {
-    //     while (1)
-    //     {
-    //         printf_tmp("child task id %d\r\n", getpid());
-    //         x = 5;
-    //         sleep(1000);
-    //     }
-    // }
-    // else if (ret > 0)
-    // {
-    //     while (1)
-    //     {
-    //         x = 2;
-    //         int pid = getpid();
-    //         printf_tmp("father task id %d ,", pid);
-    //         printf_tmp("create a child id is %d\r\n", ret);
-    //         sleep(1000);
-    //     }
-    // }
-    // else
-    // {
-    //     printf_tmp("fork faile\r\n", 1);
-    // }
+    int pid = getpid();
+    printf_tmp("shell task id=%d \r\n", pid);
+    int i;
+    for (i = 0; i < 2; i++)
+    {
+        pid = fork();
+        if (pid < 0)
+        {
+            printf_tmp("create child proc failed.\r\n", 0);
+        }
+        else if (pid == 0)
+        {
+            printf_tmp("child: %d\r\n", getpid());
+            //x = 2;
+            printf_tmp("x = %d\r\n",x);
+            
+            sleep(1000);
+            exit(0);
+        }
+        else
+        {
+            printf_tmp("child task id=%d  ", pid);
+        }
+    }
+    return;
+    for (int i = 0; i < 2; i++)
+    {
+        int status, pid;
+        pid = wait(&status);
+        printf_tmp("collect on child %d\r\n", pid);
+    }
+    
 
-    int count = 0;
-   
-    count++;
+        
+  
     
     return 0;
 }
