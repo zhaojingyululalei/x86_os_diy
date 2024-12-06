@@ -28,7 +28,23 @@
 			"stdlib.h": "c",
 			"memory.h": "c",
 			"executor": "c",
-			"fs.h": "c"
+			"fs.h": "c",
+			"page.h": "c",
+			"bit": "c",
+			"compare": "c",
+			"condition_variable": "c",
+			"cstddef": "c",
+			"forward_list": "c",
+			"list": "c",
+			"string": "c",
+			"io_context": "c",
+			"future": "c",
+			"limits": "c",
+			"memory": "c",
+			"mutex": "c",
+			"new": "c",
+			"functional": "c",
+			"list.h": "c"
 		}
 	}
 }

@@ -68,9 +68,11 @@ static inline int pte_index (uint32_t vaddr) {
 }
 
 void mmu_test(void);
+//内核代码不用释放
 void kernel_pgd_create(void);
 int mmu_memory_map(pde_t page_dir[] ,ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc);
 ph_addr_t mmu_get_phaddr(pde_t page_dir[],ph_addr_t vm) ;
+
 //浅拷贝内核页表，因为内核区一模一样
 ph_addr_t mmu_create_task_pgd(void);
 int mmu_destory_task_pgd(pde_t page_dir[]);

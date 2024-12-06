@@ -48,6 +48,11 @@ static inline list_node_t * list_node_next(list_node_t *node) {
     return node->next;
 }
 
+static inline list_node_t* list_node_front(list_node_t* node)
+{
+    return node->pre;
+}
+
 /**
  * 带头结点和尾结点的单链表
  * 每个结点只需要一个指针，用于减少内存使用量
@@ -98,6 +103,8 @@ static inline list_node_t* list_last(list_t *list) {
 
 void list_insert_first(list_t *list, list_node_t *node);
 void list_insert_last(list_t *list, list_node_t *node);
+void list_insert_behind(list_t *list, list_node_t *pos_node, list_node_t *insert_node);
+void list_insert_front(list_t *list, list_node_t *pos_node, list_node_t *insert_node);
 list_node_t* list_remove_first(list_t *list);
 list_node_t* list_remove(list_t *list, list_node_t *node);
 

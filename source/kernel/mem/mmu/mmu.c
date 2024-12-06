@@ -3,11 +3,13 @@
 #include "cpu_cfg.h"
 #include "debug.h"
 #include "cpu_instr.h"
+#include "page.h"
 // 全局页目录表
 static uint32_t pgd[1024] __attribute__((aligned(4096))) = {0};
-
+/*内核代码一点也不释放*/
 void kernel_pgd_create(void)
 {
+    //int test = 0;
     ph_addr_t start_addr = 0;
     ph_addr_t end_addr = MEM_TOTAL_SIZE - 1;
     // 一张中间页表，管理4MB空间,计算需要多少张中间页表
@@ -31,8 +33,11 @@ void kernel_pgd_create(void)
         {
             pte[j] = start_addr | PTE_P | PTE_W;
             // dbg_info("pte addr %x,value %x\r\n",&pte[j],pte[j]);
+            // page_alloc(start_addr,PAGE_TYPE_ANONYM);
+            // page_record_map_ref(start_addr,start_addr);
             start_addr += MEM_PAGE_SIZE;
         }
+        //test++;
     }
     // 设置页表地址
     write_cr3((uint32_t)pgd);
@@ -42,6 +47,8 @@ void kernel_pgd_create(void)
 /*建立虚拟地址，物理地址内存映射关系*/
 int mmu_memory_map(pde_t page_dir[], ph_addr_t vm, ph_addr_t phm, uint32_t write_disable, uint32_t user_mode_acc)
 {
+
+
     int pgd_idx = (vm >> 22) & 0x3FF; // 取虚拟地址高10位
     pde_t *pde = &page_dir[pgd_idx];
     ph_addr_t pmd, alloced;
@@ -72,6 +79,11 @@ int mmu_memory_map(pde_t page_dir[], ph_addr_t vm, ph_addr_t phm, uint32_t write
     pte->write_disable = write_disable;
     pte->user_mode_acc = user_mode_acc;
     pte->phy_page_addr = phm >> 12;
+
+    //page_t
+    //只要涉及到虚拟地址物理地址映射，就分配个页结构体记录
+    page_t* page = page_alloc(phm,PAGE_TYPE_ANONYM);
+    page_record_map_ref(vm,page);
 
     return 1;
 }
@@ -166,6 +178,13 @@ int mmu_destory_task_pgd(pde_t page_dir[])
                 if (pte_cur->present)
                 {
                     ph_addr_t phm = pte_cur->phy_page_addr << 12;
+                    ph_addr_t vm = i<<22|j<<12;
+                    page_dispel_map_ref(vm,page_dir);
+                    int ref = page_get_ph_ref(vm,page_dir);
+                    if(ref>0)//还有其他虚拟地址指向该物理页
+                    {
+                        return -1;
+                    }
                     ret = mm_free_one_page(phm); //释放代码数据内存
                     if (ret < 0)
                     {
@@ -231,7 +250,7 @@ void mmu_cpy_page_dir(pde_t from[], pde_t to[], ph_addr_t start_vm, int page_cou
         if (pde_src->present)
         {
             pde_dest->v = pde_src->v;
-            ph_addr_t page_table = mm_alloc_one_page();
+            ph_addr_t page_table = mm_alloc_one_page(); //分配一张中间页表
             pde_dest->phy_pt_addr = page_table >> 12;
 
             for (;;)
@@ -243,8 +262,10 @@ void mmu_cpy_page_dir(pde_t from[], pde_t to[], ph_addr_t start_vm, int page_cou
                     pte_dest->v = pte_src->v;
                     ph_addr_t src_ph = pte_src->phy_page_addr << 12;
                     ph_addr_t dest_ph = mm_alloc_one_page();
-                    memcpy((uint8_t *)dest_ph, (uint8_t *)src_ph, MEM_PAGE_SIZE);
+                    memcpy((uint8_t *)dest_ph, (uint8_t *)src_ph, MEM_PAGE_SIZE);//连内容也要拷贝
                     pte_dest->phy_page_addr = dest_ph >> 12;
+                    page_t* page = page_alloc(dest_ph,PAGE_TYPE_ANONYM); //记录page ref
+                    page_record_map_ref(vm,page);
                     page_count--;
                     if (page_count == 0)
                     {

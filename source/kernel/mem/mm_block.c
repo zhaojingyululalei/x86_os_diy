@@ -2,137 +2,252 @@
 #include "init.h"
 #include "mem_addr_cfg.h"
 #include "debug.h"
-static memblock_region_t mm_regions[MEM_MMREGION_MAX_CNT] = {0};
-static memblock_region_t rv_regions[MEM_RVREGION_MAX_CNT] = {0};
-static memblock_t memblock;
+#include "math.h"
+#include "list.h"
 
-static memblock_region_t *get_region_from(memblock_type_t *mm)
+/*分配的页有大部分用在进程拷贝内核页表上*/
+static memblock_region_t all_regions[MEM_REGION_MAX_CNT] = {0};
+static memblock_t g_memblock;
+static void region_debug_print(void)
 {
-    for (int i = 0; i < mm->max; i++)
+    memblock_t *memblock = &g_memblock;
+
+    // 打印 memory 区域
+    dbg_info("Memory Regions:\r\n");
+    dbg_info("Total Count: %d\r\n", memblock->memory.cnt);
+    memblock_region_t *cur_mem = list_node_parent(memblock->memory.regions.first, memblock_region_t, node);
+
+    while (cur_mem)
     {
-        if (mm->regions[i].flag == NONE)
-        {
-            return &mm->regions[i];
-        }
+        dbg_info("  [Memory] Base: 0x%x, Size: 0x%x\r\n", cur_mem->base, cur_mem->size);
+        cur_mem = list_node_parent(list_node_next(&cur_mem->node), memblock_region_t, node);
     }
-    return NULL;
+
+    // 打印 reserved 区域
+    dbg_info("Reserved Regions:\r\n");
+    dbg_info("Total Count: %d\r\n", memblock->reserved.cnt);
+    memblock_region_t *cur_rsv = list_node_parent(memblock->reserved.regions.first, memblock_region_t, node);
+
+    while (cur_rsv)
+    {
+        dbg_info("  [Reserved] Base: 0x%x, Size: 0x%x\r\n", cur_rsv->base, cur_rsv->size);
+        cur_rsv = list_node_parent(list_node_next(&cur_rsv->node), memblock_region_t, node);
+    }
 }
-
-static int free_region_in(memblock_region_t *region, memblock_type_t *mm)
+void memblock_init(void)
 {
-    memblock_region_t *start = mm->regions;
-    for (int i = 0; i < mm->max; i++, start++)
-    {
-        if (start == region)
-        {
-            start->flag = NONE;
-            return 0;
-        }
-    }
-    return -1;
+    uint32_t mm_start = KERNEL_START_ADDR_REL + KERNEL_SIZE;
+
+    memblock_t *memblock = &g_memblock;
+    sys_mutex_init(&memblock->mutex);
+
+    list_init(&memblock->memory.regions);
+    list_init(&memblock->reserved.regions);
+
+    memblock->memory.cnt = 0;
+    memblock->reserved.cnt = 0;
+
+    // 初始化一个大的 reserved 区域
+    all_regions[0].base = mm_start;
+    all_regions[0].size = MEM_TOTAL_SIZE - mm_start - MEM_PAGE_SIZE;
+    all_regions[0].flag = REGION_TYPE_RESERVED;
+
+    list_insert_last(&memblock->reserved.regions, &all_regions[0].node);
+    memblock->reserved.cnt++; // 初始只有一个 reserved 区域
 }
 
 ph_addr_t mm_alloc_pages(uint32_t n)
 {
-    sys_mutex_lock(&memblock.mutex);
-    ph_addr_t ret = -1;
-    memblock_region_t *region = NULL;
-    memblock_region_t *best_fit = NULL;
-    uint32_t best_fit_size = UINT32_MAX;
-
-    for (int i = 0; i < MEM_MMREGION_MAX_CNT; i++)
+    if (n == 0)
     {
-        if (mm_regions[i].flag == MEMORY)
+        dbg_error("Invalid allocation request: 0 pages.\r\n");
+        return 0;
+    }
+
+    uint32_t alloc_size = n * MEM_PAGE_SIZE;
+    memblock_t *memblock = &g_memblock;
+    list_node_t *node;
+    memblock_region_t *region;
+
+    sys_mutex_lock(&memblock->mutex);
+
+    node = memblock->reserved.regions.first;
+    while (node)
+    {
+        region = list_node_parent(node, memblock_region_t, node);
+
+        if (region->size >= alloc_size)
         {
-            uint32_t region_size = mm_regions[i].size;
+            // 分配区域
+            ph_addr_t alloc_base = region->base;
 
-            if (region_size >= n * MEM_PAGE_SIZE && region_size < best_fit_size)
+            region->base += alloc_size;
+            region->size -= alloc_size;
+
+            // 如果分配后区域为 0，移除该区域
+            if (region->size == 0)
             {
-                best_fit = &mm_regions[i];
-                best_fit_size = region_size;
+                list_remove(&memblock->reserved.regions, &region->node);
+                memblock->reserved.cnt--;
+                region->flag = REGION_TYPE_NONE; // 置为未使用
+            }
 
-                if (region_size == n * MEM_PAGE_SIZE)
+            // 创建新的 memory 区域
+            for (int i = 0; i < MEM_REGION_MAX_CNT; i++)
+            {
+                if (all_regions[i].flag == REGION_TYPE_NONE)
                 {
+                    all_regions[i].base = alloc_base;
+                    all_regions[i].size = alloc_size;
+                    all_regions[i].flag = REGION_TYPE_MEMORY;
+
+                    list_insert_last(&memblock->memory.regions, &all_regions[i].node);
+                    memblock->memory.cnt++;
                     break;
                 }
             }
+
+            sys_mutex_unlock(&memblock->mutex);
+            return alloc_base;
         }
+
+        node = node->next;
     }
 
-    if (best_fit != NULL)
-    {
-        ret = best_fit->base;
-
-        if (best_fit_size > n * MEM_PAGE_SIZE)
-        {
-            best_fit->base += n * MEM_PAGE_SIZE;
-            best_fit->size -= n * MEM_PAGE_SIZE;
-        }
-        else
-        {
-            best_fit->flag = NONE;
-            memblock.memory.cnt--;
-        }
-
-        region = get_region_from(&memblock.reserved);
-        if (region != NULL)
-        {
-            memblock.reserved.cnt++;
-            region->flag = RESERVED;
-            region->base = ret;
-            region->size = n * MEM_PAGE_SIZE;
-        }
-        else
-        {
-            // 处理错误，避免空指针访问
-            dbg_warning("内存不足，无法在 reserved 中记录分配信息\n");
-            sys_mutex_unlock(&memblock.mutex);
-            return 0;
-        }
-    }
-    sys_mutex_unlock(&memblock.mutex);
-    return ret;
+    sys_mutex_unlock(&memblock->mutex);
+    dbg_error("Allocation failed: not enough memory.\r\n");
+    return 0;
 }
 
-int mm_free_pages(ph_addr_t addr, uint32_t n)
-{
-    sys_mutex_lock(&memblock.mutex);
-    memblock_region_t *region;
-    for (int i = 0; i < MEM_RVREGION_MAX_CNT; i++)
-    {
-        if (rv_regions[i].flag == RESERVED)
-        {
-            if (rv_regions[i].base == addr)
-            {
-                if (n * MEM_PAGE_SIZE != rv_regions[i].size)
-                {
-                    dbg_warning("分配和释放的内存不匹配\n");
-                }
-                rv_regions[i].flag = NONE;
-                memblock.reserved.cnt--;
+int mm_free_pages(ph_addr_t addr, uint32_t n) {
+    if (addr == 0 || n == 0) {
+        dbg_error("Invalid free request: addr=0x%x, n=%u\r\n", addr, n);
+        return -1;
+    }
 
-                region = get_region_from(&memblock.memory);
-                if (region != NULL)
-                {
-                    memblock.memory.cnt++;
-                    region->flag = MEMORY;
-                    region->base = addr;
-                    region->size = n * MEM_PAGE_SIZE;
-                    sys_mutex_unlock(&memblock.mutex);
-                    return 0;
+    uint32_t free_size = n * MEM_PAGE_SIZE;
+    memblock_t *memblock = &g_memblock;
+    list_node_t *node;
+    memblock_region_t *region;
+
+    sys_mutex_lock(&memblock->mutex);
+
+    node = memblock->memory.regions.first;
+    while (node) {
+        region = list_node_parent(node, memblock_region_t, node);
+
+        if (region->base <= addr && addr + free_size <= region->base + region->size) {
+            // 如果完全匹配，移除该区域
+            if (region->base == addr && region->size == free_size) {
+                list_remove(&memblock->memory.regions, &region->node);
+                memblock->memory.cnt--;
+                region->flag = REGION_TYPE_NONE;
+
+                // 将释放的区域加入 reserved 区域
+                for (int i = 0; i < MEM_REGION_MAX_CNT; i++) {
+                    if (all_regions[i].flag == REGION_TYPE_NONE) {
+                        all_regions[i].base = addr;
+                        all_regions[i].size = free_size;
+                        all_regions[i].flag = REGION_TYPE_RESERVED;
+
+                        list_insert_last(&memblock->reserved.regions, &all_regions[i].node);
+                        memblock->reserved.cnt++;
+                        break;
+                    }
                 }
-                else
-                {
-                    dbg_warning("无法在 memory 中记录释放的区域\n");
-                    sys_mutex_unlock(&memblock.mutex);
-                    return -1;
+
+                // 合并相邻的 reserved 区域
+                memblock_region_t *cur_rsv = list_node_parent(memblock->reserved.regions.first, memblock_region_t, node);
+                while (cur_rsv) {
+                    memblock_region_t *next_rsv = list_node_parent(list_node_next(&cur_rsv->node), memblock_region_t, node);
+
+                    if (next_rsv && cur_rsv->base + cur_rsv->size == next_rsv->base) {
+                        cur_rsv->size += next_rsv->size;
+
+                        list_remove(&memblock->reserved.regions, &next_rsv->node);
+                        memblock->reserved.cnt--;
+                        next_rsv->flag = REGION_TYPE_NONE;
+                    } else {
+                        cur_rsv = next_rsv;
+                    }
+                }
+
+                sys_mutex_unlock(&memblock->mutex);
+                return 0;
+            }
+
+            // 如果是部分释放，需要拆分区域
+            if (region->base == addr) {
+                // 释放区域位于开头
+                region->base += free_size;
+                region->size -= free_size;
+            } else if (addr + free_size == region->base + region->size) {
+                // 释放区域位于末尾
+                region->size -= free_size;
+            } else {
+                // 释放区域位于中间，需要拆分区域
+                ph_addr_t new_base = addr + free_size;
+                uint32_t new_size = region->base + region->size - new_base;
+
+                // 更新原区域为左侧部分
+                region->size = addr - region->base;
+
+                // 创建新的右侧部分区域
+                for (int i = 0; i < MEM_REGION_MAX_CNT; i++) {
+                    if (all_regions[i].flag == REGION_TYPE_NONE) {
+                        all_regions[i].base = new_base;
+                        all_regions[i].size = new_size;
+                        all_regions[i].flag = REGION_TYPE_MEMORY;
+
+                        list_insert_behind(&memblock->memory.regions, &region->node, &all_regions[i].node);
+                        memblock->memory.cnt++;
+                        break;
+                    }
                 }
             }
+
+            // 将释放的区域加入 reserved 区域
+            for (int i = 0; i < MEM_REGION_MAX_CNT; i++) {
+                if (all_regions[i].flag == REGION_TYPE_NONE) {
+                    all_regions[i].base = addr;
+                    all_regions[i].size = free_size;
+                    all_regions[i].flag = REGION_TYPE_RESERVED;
+
+                    list_insert_last(&memblock->reserved.regions, &all_regions[i].node);
+                    memblock->reserved.cnt++;
+                    break;
+                }
+            }
+
+            // 合并相邻的 reserved 区域
+            memblock_region_t *cur_rsv = list_node_parent(memblock->reserved.regions.first, memblock_region_t, node);
+            while (cur_rsv) {
+                memblock_region_t *next_rsv = list_node_parent(list_node_next(&cur_rsv->node), memblock_region_t, node);
+
+                if (next_rsv && cur_rsv->base + cur_rsv->size == next_rsv->base) {
+                    cur_rsv->size += next_rsv->size;
+
+                    list_remove(&memblock->reserved.regions, &next_rsv->node);
+                    memblock->reserved.cnt--;
+                    next_rsv->flag = REGION_TYPE_NONE;
+                } else {
+                    cur_rsv = next_rsv;
+                }
+            }
+
+            sys_mutex_unlock(&memblock->mutex);
+            return 0;
         }
+
+        node = node->next;
     }
-    sys_mutex_unlock(&memblock.mutex);
+
+    sys_mutex_unlock(&memblock->mutex);
+    dbg_error("Freeing failed: address 0x%x not found.\r\n", addr);
+    region_debug_print();
     return -1;
 }
+
 
 ph_addr_t mm_alloc_one_page(void)
 {
@@ -144,43 +259,7 @@ int mm_free_one_page(ph_addr_t addr)
     return mm_free_pages(addr, 1);
 }
 
-void memblock_init(void)
-{
 
-    sys_mutex_init(&memblock.mutex);
-    for (int i = 0; i < MEM_MMREGION_MAX_CNT; i++)
-    {
-        mm_regions[i].flag = NONE;
-    }
-    for (int i = 0; i < MEM_RVREGION_MAX_CNT; i++)
-    {
-        rv_regions[i].flag = NONE;
-    }
-
-    memblock.memory.cnt = 1;
-    memblock.memory.max = MEM_MMREGION_MAX_CNT;
-    memblock.memory.regions = mm_regions;
-
-    memblock.reserved.cnt = 0;
-    memblock.reserved.max = MEM_RVREGION_MAX_CNT;
-    memblock.reserved.regions = rv_regions;
-
-    uint32_t mm_start = KERNEL_START_ADDR_REL + KERNEL_SIZE;
-    uint32_t mm_end = boot_inform->ram_region_cfg[1].start + boot_inform->ram_region_cfg[1].size - 1;
-
-    memblock_region_t *region = get_region_from(&memblock.memory);
-    if (region != NULL)
-    {
-        region->flag = MEMORY;
-        region->base = mm_start;
-        region->size = mm_end - mm_start + 1;
-        memblock.memory.cnt++;
-    }
-    else
-    {
-        dbg_warning("内存区域初始化失败\n");
-    }
-}
 
 /**
  * 给进程虚拟空间分配内存
@@ -215,12 +294,15 @@ int mmblock(task_t *task, ph_addr_t vm_start, uint32_t n)
 int mmfree(task_t *task, ph_addr_t vm_start, uint32_t n)
 {
     int ret = 0;
+    ph_addr_t vm = vm_start;
+    // 找物理页表
     ph_addr_t page_dir = task_get_page_dir(task);
     if (page_dir == NULL)
     {
         dbg_error("task cr3 not init yet\r\n");
         return -1;
     }
+    // 获取虚拟地址对应的pte项
     pte_t *pte_free = mmu_from_vm_get_pte(page_dir, vm_start);
     if (pte_free == NULL)
     {
@@ -231,14 +313,29 @@ int mmfree(task_t *task, ph_addr_t vm_start, uint32_t n)
     {
         if (pte_free->present)
         {
+            // 减少引用计数
+            ret = page_dispel_map_ref(vm, page_dir);
+            if (ret < 0)
+            {
+                dbg_error("mem free failed\r\n");
+                return -1;
+            }
+            // 删除物理内存
+            int ref = page_get_ph_ref(vm, page_dir);
+            if (ref > 0) // 有其他虚拟内存指向该物理页，不能删
+            {
+                dbg_warning("还有其他虚拟内存使用该物理页\r\n");
+                return -1;
+            }
             ret = mm_free_one_page(pte_free->phy_page_addr << 12);
-            if(ret < 0)
+            if (ret < 0)
             {
                 dbg_error("mem free failed\r\n");
                 return -1;
             }
             pte_free->v = 0;
-            pte_free++;
+            pte_free++; // 这都是连续的内存页
+            vm += MEM_PAGE_SIZE;
         }
     }
     return 0;

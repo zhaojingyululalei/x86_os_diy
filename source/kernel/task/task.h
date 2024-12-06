@@ -5,9 +5,14 @@
 #include "cpu_cfg.h"
 #define TASK_TIME_SLICE_DEFAULT		10			// 时间片计数
 #define TASK_SCHED_POLICY_DEFAULT   SCHED_FIFO
+#define USR_STACK_SIZE_DEFAULT  (2 * MEM_PAGE_SIZE)
+#define KERNEL_STACK_SIZE_DEFAULT   MEM_PAGE_SIZE
+/*pid*/
 #define PID_MAX_NR 1024
 #define TASK_MAX_NR PID_MAX_NR
-#define BITMAP_SIZE ((PID_MAX_NR + 7) / 8)
+//pid位图
+#define BITMAP_SIZE ((PID_MAX_NR + 7) / 8) 
+
 
 #define DEFINE_PROCESS_FUNC(name)            void* name(void* arg)
 typedef void*(*process_func_t)(void*);

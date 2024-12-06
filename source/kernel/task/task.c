@@ -21,7 +21,9 @@ int tss_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task_
     memset(&task->tss, 0, sizeof(tss_t));
 
     // 给任务分配内核栈空间
-    ph_addr_t kernel_stack_base = mm_alloc_one_page();
+    ph_addr_t kernel_stack_base = mm_alloc_pages(KERNEL_STACK_SIZE_DEFAULT/MEM_PAGE_SIZE);
+   
+
     if (kernel_stack_base < 0)
     {
         dbg_error("task alloc kernel stack fail:%s\r\n", err_str[MEM_NOT_ENOUGH]);
@@ -94,7 +96,7 @@ int task_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task
     else
     {
         task->attr.sched_policy = TASK_SCHED_POLICY_DEFAULT;
-        task->attr.stack_size = 2 * MEM_PAGE_SIZE;
+        task->attr.stack_size = USR_STACK_SIZE_DEFAULT;
         task->slice_ticks = task->attr.time_slice = TASK_TIME_SLICE_DEFAULT;
     }
     int ret;
@@ -199,17 +201,22 @@ int sys_fork(void)
     pde_t *parent_pgd = task_get_page_dir(parent);
     pde_t *child_pgd = task_get_page_dir(child);
     int stack_page_count = parent->attr.stack_size / MEM_PAGE_SIZE;
-    // 栈的页表拷贝（特殊处理，不遵循写时复制）
+    // 栈的页表拷贝（特殊处理，不遵循写时复制）深拷贝
     mmu_cpy_page_dir(parent_pgd, child_pgd, stack_start, stack_page_count);
 
     // 获取用户空间页目录的起始和结束指针
-    pde_t *parent_start_pgd = mmu_from_vm_get_pde(parent_pgd, USR_ENTRY_BASE);
-    pde_t *parent_pgd_end = mmu_from_vm_get_pde(parent_pgd, stack_start);
-    pde_t *child_start_pgd = mmu_from_vm_get_pde(child_pgd, USR_ENTRY_BASE);
+    int parent_start_idx = pde_index(USR_ENTRY_BASE);
+    int parent_end_idx = pde_index(stack_start);
+    int child_start_idx = pde_index(USR_ENTRY_BASE);
+    // pde_t *parent_start_pgd = mmu_from_vm_get_pde(parent_pgd, USR_ENTRY_BASE);
+    // pde_t *parent_pgd_end = mmu_from_vm_get_pde(parent_pgd, stack_start);
+    // pde_t *child_start_pgd = mmu_from_vm_get_pde(child_pgd, USR_ENTRY_BASE);
 
     // 遍历用户空间页目录，内核空间不用管
-    for (pde_t *p = parent_start_pgd, *c = child_start_pgd; p < parent_pgd_end; p++, c++)
+    for (int i=parent_start_idx;i<parent_end_idx;++i)
     {
+        pde_t* p = &parent_pgd[i];
+        pde_t* c = &child_pgd[i];
         if (!p->present)
         {
             continue; // 父进程页目录项不存在，跳过
@@ -227,20 +234,24 @@ int sys_fork(void)
         pte_t *child_start_pte = (pte_t *)((c->phy_pt_addr) << 12);
 
         // 遍历页表项
-        for (int i = 0; i < 1024; i++)
+        for (int j = 0; j < 1024; j++)
         {
-            if (!parent_start_pte[i].present)
+            if (!parent_start_pte[j].present)
             {
-                child_start_pte[i].v = 0; // 父页表项不存在，子页表项置 0
+                child_start_pte[j].v = 0; // 父页表项不存在，子页表项置 0
                 continue;
             }
-
+            //增加引用计数
+            ph_addr_t vmm = i<<22|j<<12;
+            ph_addr_t phh = (parent_start_pte->phy_page_addr) << 12;
+            page_t* page = get_page_struct(phh);
+            page_record_map_ref(vmm,page);
             // 拷贝父页表项到子页表项
-            child_start_pte[i] = parent_start_pte[i];
+            child_start_pte[j] = parent_start_pte[j];
 
             // 设置子页表项为只读并标记为写时复制
-            child_start_pte[i].write_disable = 0;                 // 设置为只读
-            child_start_pte[i].ignore = PTE_IGNORE_COPY_ON_WRITE; // 标记为写时复制
+            child_start_pte[j].write_disable = 0;                 // 设置为只读
+            child_start_pte[j].ignore = PTE_IGNORE_COPY_ON_WRITE; // 标记为写时复制
         }
     }
 
@@ -471,7 +482,7 @@ int sys_execve(const char *path, char *const *argv, char *const *env)
     ph_addr_t test_tmp = cpy_argv(stack_base_ph + 2048, env, &envc);
     if (test_tmp == NULL)
     {
-        dbg_warning("env execve cpyarg fail\r\n");
+        //dbg_warning("env execve cpyarg fail\r\n");
     }
     ph_addr_t stack_top_ph = stack_base_ph + cur_attr->stack_size;
 
@@ -487,7 +498,7 @@ int sys_execve(const char *path, char *const *argv, char *const *env)
     // 处理完参数后，切换新页表，销毁旧页表
     cur_task->tss.cr3 = new_page_dir;
     write_cr3(new_page_dir);
-    //mmu_destory_task_pgd((pde_t *)old_page_dir);
+    mmu_destory_task_pgd((pde_t *)old_page_dir);
 
     // 加载程序
     entry = load_app_elf(cur_task, new_path);
@@ -582,9 +593,10 @@ void sys_exit(int status)
 void task_collect(task_t *task)
 {
     pde_t *pagedir = task_get_page_dir(task);
-    //mmu_destory_task_pgd(pagedir);
+    //释放用户代码栈空间
+    mmu_destory_task_pgd(pagedir);
     // 释放内核栈空间esp0
-    mmfree(task, task->tss.esp0 - task->attr.stack_size, task->attr.stack_size / MEM_PAGE_SIZE);
+    mm_free_pages(task->tss.esp0 - KERNEL_STACK_SIZE_DEFAULT,KERNEL_STACK_SIZE_DEFAULT / MEM_PAGE_SIZE);
     remove_task_from_all_list(task);
     task_free(task);
 }

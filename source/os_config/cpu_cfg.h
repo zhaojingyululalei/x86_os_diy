@@ -3,6 +3,7 @@
 
 #include "mem_addr_cfg.h"
 #include "blk_cfg.h"
+#define MEM_PAGE_SIZE 4096
 #define MEM_TOTAL_SIZE  (128*1024*1024)
 #define USR_STACK_TOP   0xFFFFF000
 #define USR_ENTRY_BASE  0x80000000
