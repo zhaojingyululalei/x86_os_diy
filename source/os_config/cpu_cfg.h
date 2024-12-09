@@ -7,6 +7,8 @@
 #define MEM_TOTAL_SIZE  (128*1024*1024)
 #define USR_STACK_TOP   0xFFFFF000
 #define USR_ENTRY_BASE  0x80000000
+#define USR_HEAP_BASE   0x90000000
+#define HEAP_FREE_LIST_NR   (12+1)  //2^0~2^12   4096 = 2^12
 //GDT描述符格式
 #define GDT_DESC_LIMIT_0_15_POS    0
 #define GDT_DESC_BASE_0_15_POS     16

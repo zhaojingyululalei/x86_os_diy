@@ -44,6 +44,7 @@ typedef struct _task_attr_t{
 }task_attr_t;
 #define TASK_NOT_COLLECT 0
 #define TASK_COLLECTING 1
+#include "mem/malloc.h"
 typedef struct _task_t
 {
     enum 
@@ -77,9 +78,13 @@ typedef struct _task_t
 	int slice_ticks;		// 递减时间片计数
 
     struct _task_t* parent;
-    int status;
+    int status;     //exit 进程退出状态值
     int wait_flag; //父进程正在回收子进程的标志
 
+    ph_addr_t heap_s;
+    ph_addr_t heap_e;
+
+    flmallocor_t flmlk; //malloc分配器
 
 
 } task_t;

@@ -100,3 +100,18 @@ int wait(int* status) {
     ret = sys_call(&args);
     return ret;
 }
+void* malloc(int size)
+{
+    syscall_args_t args;
+    args.id = SYS_malloc;
+    args.arg0 = size;
+    return sys_call(&args);
+}
+
+void free(void* ptr)
+{
+    syscall_args_t args;
+    args.id = SYS_free;
+    args.arg0 = ptr;
+    return sys_call(&args);
+}

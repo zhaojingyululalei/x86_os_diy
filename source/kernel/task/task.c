@@ -111,6 +111,8 @@ int task_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task
     task->entry = entry;
     task->status = 0;
     task->wait_flag = TASK_NOT_COLLECT;
+    task->heap_s = task->heap_e = USR_HEAP_BASE;
+    flmallocor_init(&task->flmlk);
     set_task_to_all_list(task);
     return 0;
 }
@@ -161,6 +163,8 @@ int sys_fork(void)
     irq_state_t state = irq_enter_protection();
     task_t *parent = get_cur_task();
     task_t *child = task_alloc();
+    child->heap_s = parent->heap_s;
+    child->heap_e = parent->heap_e;
     if (child == NULL)
     {
         irq_leave_protection(state);
@@ -634,3 +638,4 @@ int sys_wait(int *status)
         irq_leave_protection(state);
     }
 }
+

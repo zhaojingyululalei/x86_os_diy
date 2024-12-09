@@ -5,6 +5,7 @@
 #include "mmu/mmu.h"
 #include "string.h"
 #include "mmu/page.h"
+#include "malloc.h"
 
 void memory_init(void);
 

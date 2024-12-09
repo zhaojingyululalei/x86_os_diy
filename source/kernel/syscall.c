@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "syscall_table.h"
 #include "task/task.h"
+
 // 系统调用处理函数类型
 typedef int (*syscall_handler_t)(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3);
 
@@ -22,6 +23,8 @@ static const syscall_handler_t sys_table[] = {
 	[SYS_yield] = (syscall_handler_t)sys_yield,
 	[SYS_exit] = (syscall_handler_t)sys_exit,
 	[SYS_wait] = (syscall_handler_t)sys_wait,
+	[SYS_malloc] = (syscall_handler_t)sys_malloc,
+	[SYS_free] = (syscall_handler_t)sys_free
 };
 
 /**

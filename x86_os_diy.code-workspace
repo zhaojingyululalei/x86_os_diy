@@ -44,7 +44,8 @@
 			"mutex": "c",
 			"new": "c",
 			"functional": "c",
-			"list.h": "c"
+			"list.h": "c",
+			"malloc.h": "c"
 		}
 	}
 }

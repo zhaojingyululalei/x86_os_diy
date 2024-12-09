@@ -9,5 +9,7 @@
 #define SYS_yield   5
 #define SYS_exit 6
 #define SYS_wait 7
+#define SYS_malloc 8
+#define SYS_free 9
 #endif
 

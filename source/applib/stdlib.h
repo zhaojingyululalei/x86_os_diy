@@ -17,5 +17,7 @@ int execve(const char *path, char * const *argv, char * const *env) ;
 int yield(void);
 void exit(int status);
 int wait(int* status);
+void* malloc(int size);
+void free(void* ptr);
 #endif
 

@@ -129,6 +129,11 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
                     buf_ptr += strlen(str);
                     break;
                 }
+                case 'c': {
+                    char c = (char) va_arg(args, int);  // `%c` 格式的字符参数
+                    *buf_ptr++ = c;
+                    break;
+                }
                 default:
                     *buf_ptr++ = *fmt_ptr;
                     break;
@@ -140,5 +145,6 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
     }
     *buf_ptr = '\0';
 }
+
 
 
