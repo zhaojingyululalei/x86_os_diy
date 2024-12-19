@@ -596,6 +596,7 @@ void sys_exit(int status)
 }
 void task_collect(task_t *task)
 {
+    pid_free(&pidallocter,task->pid);//回收pid
     pde_t *pagedir = task_get_page_dir(task);
     //释放用户代码栈空间
     mmu_destory_task_pgd(pagedir);
