@@ -3,20 +3,23 @@
 #include "irq/irq.h"
 #include "cpu_instr.h"
 #include "task/task.h"
-static uint32_t sys_tick;
+static uint32_t sys_tick=0;
 
 /**
  * 定时器中断处理函数
  */
 void do_handler_timer (exception_frame_t *frame) {
-    sys_tick++;
+    sys_tick+=10;
 
     // 发送EOI
     pic_send_eoi(IRQ0_TIMER);
     task_time_tick();
    
 }
-
+uint32_t get_cur_time_ms(void)
+{
+    return sys_tick;
+}
 void timer_init(void)
 {
     sys_tick = 0;

@@ -16,6 +16,6 @@
 
 void exception_handler_timer (void);
 void timer_init(void);
-
+uint32_t get_cur_time_ms(void);
 
 #endif
