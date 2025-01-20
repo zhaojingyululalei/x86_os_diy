@@ -2,7 +2,7 @@ include ../../../Makefile.common
 
 # 手动配置项
 PROJECT := shell
-INCLUDE := ../../applib
+INCLUDE := ../../applib ../../kernel ../../tools ../../os_config ../../lib
 SRCDIR := 
 LIBDIR := ../../applib
 

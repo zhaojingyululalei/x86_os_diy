@@ -1,7 +1,7 @@
 #include "string.h"
 #include "types.h"
 #include <stdarg.h>
-
+#include "debug.h"
 // 字符串拷贝函数 strcpy
 void strcpy(char *dest, const char *src) {
     while ((*dest++ = *src++));
@@ -49,6 +49,20 @@ void memcpy(void *dest, const void *src, int size) {
     }
 }
 
+void memmove(void *dest, const void *src, int size)
+{
+    static uint8_t cp_src_buf[1024] = {0};
+    if(size >1024)
+    {
+        dbg_error("memmove size out of boundry\r\n");
+        return;
+    }
+    memset(cp_src_buf,0,1024);
+    memcpy(cp_src_buf,src,size);
+    memcpy(dest,cp_src_buf,size);
+    return;
+
+}
 // 内存填充函数 memset
 void memset(void *dest, uint8_t v, int size) {
     uint8_t *d = dest;

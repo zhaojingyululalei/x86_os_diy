@@ -1,6 +1,8 @@
-#include "stdlib.h"
+#include "_stdlib.h"
 #include "syscall_table.h"
 #include "cpu_cfg.h"
+#include "ipc/mutex.h"
+#include "ipc/semaphor.h"
 /**
  * 直接-L -l的话，这些函数重定位不在0x80000000以上范围内。而是在内核区。用户掉不了。
  */
@@ -54,7 +56,7 @@ void printf_tmp(char* fmt, int arg)
     args.id = SYS_printf_tmp;
     args.arg0 = (int)fmt;
     args.arg1 = arg;
-    return sys_call(&args);
+    sys_call(&args);
 }
 
 int fork() {
@@ -113,5 +115,115 @@ void free(void* ptr)
     syscall_args_t args;
     args.id = SYS_free;
     args.arg0 = ptr;
+   sys_call(&args);
+}
+
+
+void mutex_init(mutex_t * mutex)
+{
+    syscall_args_t args;
+    args.id = SYS_mutex_init;
+    args.arg0 = mutex;
+   sys_call(&args);
+}
+
+void mutex_lock(mutex_t * mutex)
+{
+    syscall_args_t args;
+    args.id = SYS_mutex_lock;
+    args.arg0 = mutex;
+    sys_call(&args);
+}
+
+void mutex_unlock(mutex_t* mutex)
+{
+    syscall_args_t args;
+    args.id = SYS_mutex_unlock;
+    args.arg0 = mutex;
+    sys_call(&args);
+}
+
+void mutex_destory(mutex_t* mutex)
+{
+    syscall_args_t args;
+    args.id = SYS_mutex_destory;
+    args.arg0 = mutex;
+    sys_call(&args);
+}
+
+int sem_init(sem_t* sem,int init_count)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_init;
+    args.arg0 = sem;
+    args.arg1 = init_count;
     return sys_call(&args);
 }
+
+void sem_wait(sem_t* sem)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_wait;
+    args.arg0 = sem;
+    sys_call(&args);
+}
+
+int sem_trywait(sem_t* sem)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_trywait;
+    args.arg0 = sem;
+    return sys_call(&args);
+}
+
+int sem_timedwait(sem_t* sem,tm_t* tmo)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_timedwait;
+    args.arg0 = sem;
+    args.arg1 = tmo;
+    return sys_call(&args);
+}
+
+void sem_notify(sem_t* sem)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_notify;
+    args.arg0 = sem;
+    sys_call(&args);
+}
+
+int sem_count(sem_t* sem)
+{
+    syscall_args_t args;
+    args.id = SYS_sem_count;
+    args.arg0 = sem;
+    return sys_call(&args);
+}
+
+int get_clocktime(tm_t* time)
+{
+    syscall_args_t args;
+    args.id = SYS_get_clocktime;
+    args.arg0 = time;
+    return sys_call(&args);
+}
+
+time_t mktime(tm_t* time)
+{
+    syscall_args_t args;
+    args.id = SYS_mktime;
+    args.arg0 = time;
+    return sys_call(&args);
+} 
+
+int local_time(tm_t *tm, time_t time)
+{
+    syscall_args_t args;
+    args.id = SYS_local_time;
+    args.arg0 = tm;
+    args.arg1 = time;
+
+    return sys_call(&args);
+}
+

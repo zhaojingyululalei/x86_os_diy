@@ -11,29 +11,44 @@ boot_info_t *boot_inform = NULL;
 #include "cpu_instr.h"
 #include "ipc/mutex.h"
 #include "ipc/semaphor.h"
-task_t second_task;
-task_t kernel_task;
+#include "net/net.h"
+task_t thello;
+task_t tworld;
+sem_t sem;
 
-DEFINE_PROCESS_FUNC(second_func)
+mutex_t mutex;
+DEFINE_PROCESS_FUNC(hello)
 {
-    //sbrk(4098);
-    //int x= mlk_alloc(218);
-    //fmlk_debug_alllist();
-    //free_block_t *fblk = mlk_get_first_block_from_list(12);
-    //mlk_split(fblk,14);
-    //fmlk_debug_alllist();
-    //mlk_collect(mlk_get_first_block_from_list(4));
-    char* p = sys_malloc(259);
-    fmlk_debug_alllist(&(get_cur_task()->flmlk));
-    sys_free(p);
-    fmlk_debug_alllist(&(get_cur_task()->flmlk));
+    int timeout = 5000,ret = 0;
+    tm_t time, tmo_time;
+    time_t now_sec, tmo_sec;
+    // 获取当前时间
+    sys_get_clocktime(&time);
+    now_sec = sys_mktime(&time);
+    // 设置绝对超时时间
 
+    uint32_t diff = (timeout + (999)) / 1000; // ms--->s 向上去整
+    tmo_sec = now_sec + diff;
+    sys_local_time(&tmo_time, tmo_sec);
+    ret = sys_sem_timedwait(&sem, &tmo_time); 
+    dbg_info("ret = %d\r\n",ret);
+    
     while (1)
     {
-
-        dbg_info("product an apple\r\n");
         sys_sleep_ms(1000);
     }
+
+    return NULL;
+}
+DEFINE_PROCESS_FUNC(world)
+{
+    sys_sleep_ms(500);
+   // sys_sem_notify(&sem);
+    while (1)
+    {
+        sys_sleep_ms(1000);
+    }
+    return NULL;
 }
 
 void jmp_to_first_task(void)
@@ -57,24 +72,42 @@ void jmp_to_first_task(void)
         [esp] "r"(tss->esp), [eflags] "r"(tss->eflags),
         [cs] "r"(tss->cs), [eip] "r"(tss->eip));
 }
+
+// #include "dev/chr/rtl8139.h"
+// static rtl8139_priv_t priv;
+
+extern void net_test(void);
 void kernel_init(boot_info_t *boot_info)
 {
     boot_inform = boot_info;
     serial_init();
     rtc_init();
+    task_ipc_init();
     memory_init();
     cpu_init();
     sched_init();
     timer_init();
-
-    create_kernel_process(&second_task, second_func);
+    
+    // sys_sem_init(&sem,0);
+    // sys_mutex_init(&mutex);
+     //create_kernel_process(&thello, hello);
+    // create_kernel_process(&tworld, world);
 
     first_task_init();
+    net_init();
     irq_enable_global();
+    // rtl8139_open(&priv);
+    net_test();
+    while (1)
+    {
+        //dbg_info("eat an apple\r\n");
+        sys_sleep_ms(1000);
+    }
+
     jmp_to_first_task();
     while (1)
     {
-        dbg_info("eat an apple\r\n");
+
         sys_sleep_ms(1000);
     }
 }

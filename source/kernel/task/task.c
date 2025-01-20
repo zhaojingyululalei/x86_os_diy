@@ -21,8 +21,7 @@ int tss_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task_
     memset(&task->tss, 0, sizeof(tss_t));
 
     // 给任务分配内核栈空间
-    ph_addr_t kernel_stack_base = mm_alloc_pages(KERNEL_STACK_SIZE_DEFAULT/MEM_PAGE_SIZE);
-   
+    ph_addr_t kernel_stack_base = mm_alloc_pages(KERNEL_STACK_SIZE_DEFAULT / MEM_PAGE_SIZE);
 
     if (kernel_stack_base < 0)
     {
@@ -217,10 +216,10 @@ int sys_fork(void)
     // pde_t *child_start_pgd = mmu_from_vm_get_pde(child_pgd, USR_ENTRY_BASE);
 
     // 遍历用户空间页目录，内核空间不用管
-    for (int i=parent_start_idx;i<parent_end_idx;++i)
+    for (int i = parent_start_idx; i < parent_end_idx; ++i)
     {
-        pde_t* p = &parent_pgd[i];
-        pde_t* c = &child_pgd[i];
+        pde_t *p = &parent_pgd[i];
+        pde_t *c = &child_pgd[i];
         if (!p->present)
         {
             continue; // 父进程页目录项不存在，跳过
@@ -245,11 +244,11 @@ int sys_fork(void)
                 child_start_pte[j].v = 0; // 父页表项不存在，子页表项置 0
                 continue;
             }
-            //增加引用计数
-            ph_addr_t vmm = i<<22|j<<12;
+            // 增加引用计数
+            ph_addr_t vmm = i << 22 | j << 12;
             ph_addr_t phh = (parent_start_pte->phy_page_addr) << 12;
-            page_t* page = get_page_struct(phh);
-            page_record_map_ref(vmm,page);
+            page_t *page = get_page_struct(phh);
+            page_record_map_ref(vmm, page);
             // 拷贝父页表项到子页表项
             child_start_pte[j] = parent_start_pte[j];
 
@@ -486,7 +485,7 @@ int sys_execve(const char *path, char *const *argv, char *const *env)
     ph_addr_t test_tmp = cpy_argv(stack_base_ph + 2048, env, &envc);
     if (test_tmp == NULL)
     {
-        //dbg_warning("env execve cpyarg fail\r\n");
+        // dbg_warning("env execve cpyarg fail\r\n");
     }
     ph_addr_t stack_top_ph = stack_base_ph + cur_attr->stack_size;
 
@@ -543,7 +542,6 @@ int sys_yield(void)
     irq_leave_protection(state);
 }
 
-
 void sys_exit(int status)
 {
     irq_state_t state = irq_enter_protection();
@@ -590,18 +588,20 @@ void sys_exit(int status)
     {
         set_task_to_ready_list(parent_task);
     }
+    // remove_task_from_ready_list(cur_task);
     set_cur_task(NULL);
     schedul();
     irq_leave_protection(state);
 }
 void task_collect(task_t *task)
 {
-    pid_free(&pidallocter,task->pid);//回收pid
+    pid_free(&pidallocter, task->pid); // 回收pid
     pde_t *pagedir = task_get_page_dir(task);
-    //释放用户代码栈空间
+    // 释放用户代码栈空间
     mmu_destory_task_pgd(pagedir);
     // 释放内核栈空间esp0
-    mm_free_pages(task->tss.esp0 - KERNEL_STACK_SIZE_DEFAULT,KERNEL_STACK_SIZE_DEFAULT / MEM_PAGE_SIZE);
+    mm_free_pages(task->tss.esp0 - KERNEL_STACK_SIZE_DEFAULT, KERNEL_STACK_SIZE_DEFAULT / MEM_PAGE_SIZE);
+    //remove_task_from_ready_list(task);
     remove_task_from_all_list(task);
     task_free(task);
 }
@@ -639,4 +639,3 @@ int sys_wait(int *status)
         irq_leave_protection(state);
     }
 }
-

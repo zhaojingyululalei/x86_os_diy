@@ -12,6 +12,7 @@ typedef struct _mutex_t {
 void sys_mutex_init (mutex_t * mutex);
 void sys_mutex_lock (mutex_t * mutex);
 void sys_mutex_unlock (mutex_t * mutex);
+void sys_mutex_destory (mutex_t * mutex);
 #endif
 
 

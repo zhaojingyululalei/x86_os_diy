@@ -56,3 +56,8 @@ void sys_mutex_unlock (mutex_t * mutex) {
 
     irq_leave_protection(irq_state);
 }
+
+void sys_mutex_destory(mutex_t *mutex)
+{
+    return;
+}

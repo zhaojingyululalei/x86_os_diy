@@ -2,7 +2,7 @@ include ../../Makefile.common
 
 # 手动配置项
 PROJECT := stdlib
-INCLUDE := ../os_config
+INCLUDE := ../os_config ../kernel ../tools ../lib
 SRCDIR := 
 LIBDIR := 
 

@@ -3,6 +3,8 @@
 #include "irq/irq.h"
 #include "cpu_instr.h"
 #include "task/task.h"
+#include "ipc/semaphor.h"
+#include "rtc.h"
 static uint32_t sys_tick=0;
 
 /**
@@ -10,9 +12,10 @@ static uint32_t sys_tick=0;
  */
 void do_handler_timer (exception_frame_t *frame) {
     sys_tick+=10;
-
+    sem_time_check();
     // 发送EOI
     pic_send_eoi(IRQ0_TIMER);
+
     task_time_tick();
    
 }

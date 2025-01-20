@@ -11,5 +11,21 @@
 #define SYS_wait 7
 #define SYS_malloc 8
 #define SYS_free 9
+#define SYS_mutex_init 10
+#define SYS_mutex_lock 11
+#define SYS_mutex_unlock 12
+#define SYS_mutex_destory 13
+#define SYS_sem_init 14
+#define SYS_sem_wait 15
+#define SYS_sem_trywait 16
+#define SYS_sem_timedwait 17
+#define SYS_sem_notify 18
+#define SYS_sem_count 19
+#define SYS_get_clocktime 20
+#define SYS_mktime 21
+#define SYS_local_time 22
+
+
+
 #endif
 

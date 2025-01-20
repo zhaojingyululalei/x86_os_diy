@@ -65,13 +65,24 @@ void set_cur_task(task_t *task)
 
 task_t *get_ready_task(void)
 {
-    list_node_t *fnode = list_remove_first(&schedulor.ready_list);
-    if (fnode == NULL)
+    for (int i = 0; i < (&schedulor.ready_list)->count; ++i)
     {
-        return NULL;
+        list_node_t *fnode = list_remove_first(&schedulor.ready_list);
+        if (fnode == NULL)
+        {
+            return NULL;
+        }
+        task_t *ftask = list_node_parent(fnode, task_t, node);
+        if (ftask->state == TASK_READY)
+        {
+            return ftask;
+        }
+        else
+        {
+            list_insert_last(&schedulor.ready_list, fnode);
+        }
     }
-    task_t *ftask = list_node_parent(fnode, task_t, node);
-    return ftask;
+    return NULL;
 }
 void set_task_to_ready_list(task_t *task)
 {
@@ -102,7 +113,7 @@ void remove_task_from_ready_list(task_t *task)
     }
     list_remove(&schedulor.ready_list, &task->node);
 }
-void remove_task_from_all_list(task_t* task)
+void remove_task_from_all_list(task_t *task)
 {
     if (!task)
     {
@@ -231,31 +242,32 @@ int sys_sleep_ms(int time)
     }
     cur_task->sleep_ticks = (time + (OS_TICK_MS - 1)) / OS_TICK_MS;
     set_cur_task(NULL);
+    //remove_task_from_ready_list(cur_task);
     task_goto_sleep(cur_task);
     schedul();
     irq_leave_protection(state);
     return 0;
 }
 
-task_t* task_all_list_get_first()
+task_t *task_all_list_get_first()
 {
-    list_node_t* fnode = list_first(&schedulor.all_list);
-    task_t* ftask = list_node_parent(fnode,task_t,all_node); 
+    list_node_t *fnode = list_first(&schedulor.all_list);
+    task_t *ftask = list_node_parent(fnode, task_t, all_node);
     return ftask;
 }
 
-task_t* task_all_list_get_next(task_t* cur)
+task_t *task_all_list_get_next(task_t *cur)
 {
-    list_node_t* cnode = &cur->all_node;
-    list_node_t* nnode = list_node_next(cnode);
-    if(!nnode)
+    list_node_t *cnode = &cur->all_node;
+    list_node_t *nnode = list_node_next(cnode);
+    if (!nnode)
     {
         return NULL;
     }
-    task_t* next = list_node_parent(nnode,task_t,all_node);
+    task_t *next = list_node_parent(nnode, task_t, all_node);
     return next;
 }
-task_t* get_init_task()
+task_t *get_init_task()
 {
     return &schedulor.first_task;
 }

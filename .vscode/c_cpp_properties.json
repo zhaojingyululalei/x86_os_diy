@@ -4,9 +4,9 @@
             "name": "linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/source/lib",
-                "${workspaceFolder}/source/kernel",
-                "${workspaceFolder}/source/applib"
+                "${workspaceFolder}/source/lib/**",
+                "${workspaceFolder}/source/kernel/**",
+                "${workspaceFolder}/source/applib/**"
             ]
         }
     ],

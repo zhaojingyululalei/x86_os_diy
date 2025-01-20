@@ -41,3 +41,28 @@ void rtc_init(void)
     return;
     
 }
+
+int sys_get_clocktime(tm_t* time)
+{
+
+    do {
+        time->tm_sec = read_cmos(0x00);    // 秒
+        time->tm_min = read_cmos(0x02);    // 分钟
+        time->tm_hour = read_cmos(0x04);   // 小时
+        time->tm_mday = read_cmos(0x07);   // 日
+        time->tm_mon = read_cmos(0x08);    // 月
+        time->tm_year = read_cmos(0x09);   // 年
+    } while (time->tm_sec != read_cmos(0x00));  // 再次读取秒，确保数据一致性
+
+    // 将 BCD 编码转换为二进制
+    BCD_TO_BIN(time->tm_sec);
+    BCD_TO_BIN(time->tm_min);
+    BCD_TO_BIN(time->tm_hour);
+    BCD_TO_BIN(time->tm_mday);
+    BCD_TO_BIN(time->tm_mon);
+    BCD_TO_BIN(time->tm_year);
+
+    time->tm_mon--;  // 月份从 0 开始
+    
+    return 0;
+}

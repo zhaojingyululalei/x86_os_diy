@@ -45,7 +45,21 @@
 			"new": "c",
 			"functional": "c",
 			"list.h": "c",
-			"malloc.h": "c"
+			"malloc.h": "c",
+			"array": "c",
+			"string_view": "c",
+			"package.h": "c",
+			"net_mmpool.h": "c",
+			"net_threads.h": "c",
+			"semaphor.h": "c",
+			"_stdlib.h": "c",
+			"syscall_table.h": "c",
+			"msgq.h": "c",
+			"net_msg.h": "c",
+			"buffer": "c",
+			"internet": "c",
+			"socket": "c",
+			"netif.h": "c"
 		}
 	}
 }

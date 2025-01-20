@@ -26,6 +26,8 @@ typedef void (*irq_handler_t)(void);
 #define IRQ20_VE            20
 
 //外部中断,来自8259
+
+#define IRQ0_BASE           0x20
 #define IRQ0_TIMER          0x20
 
 //错误码

@@ -86,6 +86,8 @@ exception_handler smd_exception, 19, 0
 exception_handler virtual_exception, 20, 0
 
 exception_handler timer, 0x20, 0
+# 中断号不确定
+exception_handler rtl8139, 0x0, 0
 
 
 

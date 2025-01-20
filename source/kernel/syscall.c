@@ -3,6 +3,8 @@
 #include "debug.h"
 #include "syscall_table.h"
 #include "task/task.h"
+#include "ipc/mutex.h"
+#include "ipc/semaphor.h"
 
 // 系统调用处理函数类型
 typedef int (*syscall_handler_t)(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3);
@@ -24,7 +26,20 @@ static const syscall_handler_t sys_table[] = {
 	[SYS_exit] = (syscall_handler_t)sys_exit,
 	[SYS_wait] = (syscall_handler_t)sys_wait,
 	[SYS_malloc] = (syscall_handler_t)sys_malloc,
-	[SYS_free] = (syscall_handler_t)sys_free
+	[SYS_free] = (syscall_handler_t)sys_free,
+	[SYS_mutex_init] = (syscall_handler_t)sys_mutex_init,
+	[SYS_mutex_lock] = (syscall_handler_t)sys_mutex_lock,
+	[SYS_mutex_unlock] = (syscall_handler_t)sys_mutex_unlock,
+	[SYS_mutex_destory] = (syscall_handler_t)sys_mutex_destory,
+	[SYS_sem_init] = (syscall_handler_t)sys_sem_init,
+	[SYS_sem_wait] = (syscall_handler_t)sys_sem_wait,
+	[SYS_sem_trywait] = (syscall_handler_t)sys_sem_trywait,
+	[SYS_sem_timedwait] = (syscall_handler_t)sys_sem_timedwait,
+	[SYS_sem_notify] = (syscall_handler_t)sys_sem_notify,
+	[SYS_sem_count] = (syscall_handler_t)sys_sem_count,
+	[SYS_get_clocktime] = (syscall_handler_t)SYS_get_clocktime,
+	[SYS_mktime] = (syscall_handler_t)sys_mktime,
+	[SYS_local_time] = (syscall_handler_t)sys_local_time,
 };
 
 /**
