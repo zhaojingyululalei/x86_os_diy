@@ -239,7 +239,7 @@ static int rtl8139_send(struct _netif_t *netif)
     // 写入发送缓存，不必调整大小，上面已经调整好
     int len = buf->total;
     package_read(buf,priv->tx.data[priv->tx.curr],len);
-    package_collect(buf);
+    //package_collect(buf);
 
     // 启动整个发送过程, 只需要写TSD，TSAD(数据地址和长度)已经在发送时完成
     // 104 bytes of early TX threshold，104字节才开始发送??，以及发送的包的字节长度，清除OWN位
@@ -317,7 +317,7 @@ void do_handler_rtl8139(void)
                 // 写入发送缓存，不必调整大小，上面已经调整好
                 int len = buf->total;
                 package_read(buf,priv->tx.data[priv->tx.curr],len);
-                package_collect(buf);
+                //package_collect(buf);
 
                 // 启动整个发送过程, 只需要写TSD，TSAD已经在发送时完成
                 // 104 bytes of early TX threshold，104字节才开始发送??，以及发送的包的字节长度，清除OWN位

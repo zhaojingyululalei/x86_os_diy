@@ -50,7 +50,7 @@ int ipaddr_n2s(const ipaddr_t *ip_addr, char *ip_str, int str_len) {
     if (ip_addr->type != IPADDR_V4) {
         return -1; 
     }
-
+    ip_str[str_len-1]= '\0';
     
     sprintf(ip_str,  "%d.%d.%d.%d",
                        ip_addr->a_addr[3], ip_addr->a_addr[2],
@@ -154,8 +154,14 @@ uint16_t ntohs(uint16_t netshort) {
 static hwaddr_t mac_broadcast ={
     .addr = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}
 };
-
+static hwaddr_t mac_empty ={
+    .addr = {0,0,0,0,0,0}
+};
 hwaddr_t* get_mac_broadcast(void)
 {
     return &mac_broadcast;
+}
+hwaddr_t* get_mac_empty(void)
+{
+    return &mac_empty;
 }

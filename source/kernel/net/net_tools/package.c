@@ -75,7 +75,7 @@ int package_collect(pkg_t *package)
     }
     if (list_count(&package->pkgdb_list) == 0)
     {
-        dbg_warning("the package has been collected before\r\n");
+        //dbg_warning("the package has been collected before\r\n");
         return -4;
     }
    

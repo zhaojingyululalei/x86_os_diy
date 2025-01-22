@@ -27,6 +27,7 @@ void netif_destory(void)
 netif_t *netif_alloc(void)
 {
     netif_t *netif = (netif_t *)mempool_alloc_blk(&netif_pool, -1);
+    memset(netif,0,sizeof(netif_t));
     if (netif)
     {
         netif->id = pid_alloc(&netid_allocer);
@@ -144,6 +145,26 @@ int netif_put_pkg_into_inq(netif_t *netif, pkg_t *package, int timeout)
     return msgQ_enqueue(&netif->in_q, (void *)package, timeout);
 }
 
+int netif_out(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
+{
+    int ret;
+   
+    if (netif->link_ops)
+    {
+        return netif->link_ops->out(netif, dest_ip, package);
+    }
+    else
+    {
+        ret = netif_put_pkg_into_outq(netif, package, -1); // 将包放入输出队列
+        if (ret < 0)
+        {
+            // 包都没放进去，pkg可以回收了
+            return -2;
+        }
+        return netif->ops->send(netif); // 调用8139驱动输出数据
+    }
+}
+
 netif_t *find_netif_by_name(const char *if_name)
 {
     /*遍历网络接口链表，找名字为if_name的接口*/
@@ -191,21 +212,20 @@ void netif_show_info(netif_t *netif)
 
     // 格式化 MAC 地址为字符串
     char mac_str[18];
-    mac_n2s(&netif->hwaddr,mac_str);
+    mac_n2s(&netif->hwaddr, mac_str);
 
     // 打印信息
-    dbg_info("netif_id:%d\r\n",netif->id);
-    dbg_info("netif_name:%s\r\n",netif->info.name);
-    dbg_info("netif_mac:%s\r\n",mac_str);
-    dbg_info("netif_ip:%s\r\n",ip_str);
-    dbg_info("netif_gateway:%s\r\n",gateway_str);
-    dbg_info("netif_mask:%s\r\n",mask_str);
+    dbg_info("netif_id:%d\r\n", netif->id);
+    dbg_info("netif_name:%s\r\n", netif->info.name);
+    dbg_info("netif_mac:%s\r\n", mac_str);
+    dbg_info("netif_ip:%s\r\n", ip_str);
+    dbg_info("netif_gateway:%s\r\n", gateway_str);
+    dbg_info("netif_mask:%s\r\n", mask_str);
 }
 void netif_show_list(void)
 {
-    
 
-    netif_t* cur = netif_first();
+    netif_t *cur = netif_first();
     while (cur)
     {
         netif_show_info(cur);
@@ -213,41 +233,36 @@ void netif_show_list(void)
     }
 }
 
-int netif_set_ip(netif_t *target_if,const char* ip_str)
+int netif_set_ip(netif_t *target_if, const char *ip_str)
 {
     int ret;
-    
 
-    ret = ipaddr_s2n(ip_str,&target_if->info.ipaddr);
-    if(ret < 0)
-    {
-        dbg_error("set ip fail\r\n");
-        return -2;
-    }
-    return 0;
-
-
-}
-int netif_set_gateway(netif_t *target_if,const char* ip_str)
-{
-    int ret;
-    
-
-    ret = ipaddr_s2n(ip_str,&target_if->info.gateway);
-    if(ret < 0)
+    ret = ipaddr_s2n(ip_str, &target_if->info.ipaddr);
+    if (ret < 0)
     {
         dbg_error("set ip fail\r\n");
         return -2;
     }
     return 0;
 }
-int netif_set_mask(netif_t *target_if,const char* ip_str)
+int netif_set_gateway(netif_t *target_if, const char *ip_str)
 {
     int ret;
-    
 
-    ret = ipaddr_s2n(ip_str,&target_if->info.mask);
-    if(ret < 0)
+    ret = ipaddr_s2n(ip_str, &target_if->info.gateway);
+    if (ret < 0)
+    {
+        dbg_error("set ip fail\r\n");
+        return -2;
+    }
+    return 0;
+}
+int netif_set_mask(netif_t *target_if, const char *ip_str)
+{
+    int ret;
+
+    ret = ipaddr_s2n(ip_str, &target_if->info.mask);
+    if (ret < 0)
     {
         dbg_error("set ip fail\r\n");
         return -2;

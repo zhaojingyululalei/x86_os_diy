@@ -3,6 +3,8 @@
 #include "net_tools/package.h"
 #include "net_worker.h"
 #include "netif.h"
+#include "arp.h"
+#include "net_tools/soft_timer.h"
 void net_init(void)
 {
     //数据包分配结构
@@ -12,6 +14,8 @@ void net_init(void)
     net_msg_init();
     netif_init();
     net_worker_init();
+    soft_timer_init();
+    arp_init();
 
 
 }

@@ -26,7 +26,6 @@ typedef struct _netif_info_t
     ipaddr_t ipaddr;
     ipaddr_t mask;
     ipaddr_t gateway;
-
 } netif_info_t;
 
 /**
@@ -84,7 +83,11 @@ typedef struct _netif_t
     netif_ops_t *ops; // 驱动
     void *ex_data;    // 驱动参数
     link_layer_t* link_ops; //链路层处理
-     
+    
+    int send_pkg_cnt;
+    int send_fail_cnt;
+    int recv_pkg_cnt;
+    int recv_fail_cnt;
 
 } netif_t;
 
@@ -102,6 +105,7 @@ pkg_t* netif_get_pkg_from_outq(netif_t* netif,int timeout);
 pkg_t* netif_get_pkg_from_inq(netif_t* netif,int timeout);
 int netif_put_pkg_into_outq(netif_t* netif,pkg_t* package,int timeout);
 int netif_put_pkg_into_inq(netif_t* netif,pkg_t* package,int timeout);
+int netif_out(netif_t* netif,ipaddr_t* dest_ip,pkg_t* package);
 
 netif_t *find_netif_by_name(const char *if_name);
 void netif_show_info(netif_t* netif);

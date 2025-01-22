@@ -9,6 +9,7 @@
 static int netif_in(netif_t *netif, pkg_t *package)
 {
     int ret;
+    netif->recv_pkg_cnt++;
     if (!netif->link_ops)
     {
         dbg_error("no link layer ops:ether? wifi?\r\n");
@@ -50,6 +51,7 @@ static void handle(void)
             ret = netif_in(netif, package);
             if (ret < 0)
             {
+                netif->recv_fail_cnt++;
                 package_collect(msg->package);
             }
             break;

@@ -109,7 +109,47 @@ void itoa(char *buf, uint32_t num, int base) {
 }
 
 
-// 格式化字符串输出函数 sprintf
+static void itoa_with_padding(char *buf, uint32_t num, int base, int width, int zero_padding) {
+    char temp[32];
+    char *ptr = temp;
+
+    // 特殊情况：num == 0
+    if (num == 0) {
+        *ptr++ = '0';
+    } else {
+        while (num > 0) {
+            int remainder = num % base;
+            *ptr++ = (remainder > 9) ? (remainder - 10) + 'a' : remainder + '0';
+            num /= base;
+        }
+    }
+    *ptr = '\0';
+
+    // 计算实际长度
+    int len = ptr - temp;
+    int pad_len = width > len ? width - len : 0;
+
+    // 填充零或空格
+    char *buf_ptr = buf;
+    if (zero_padding) {
+        while (pad_len-- > 0) {
+            *buf_ptr++ = '0';
+        }
+    } else {
+        while (pad_len-- > 0) {
+            *buf_ptr++ = ' ';
+        }
+    }
+
+    // 反转字符串并复制到目标缓冲区
+    ptr--;
+    while (ptr >= temp) {
+        *buf_ptr++ = *ptr--;
+    }
+
+    *buf_ptr = '\0'; // 添加字符串结束符
+}
+
 void sprintf(char *buffer, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -123,81 +163,46 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
 
     while (*fmt_ptr) {
         if (*fmt_ptr == '%' && *(fmt_ptr + 1) != '%') {
-            fmt_ptr++;  // Skip the '%' character
+            fmt_ptr++;  // Skip '%'
 
-            // Handle width and flags
+            // 解析宽度和填充
             int width = 0;
             int zero_padding = 0;
-
-            // Check for width (numbers before the specifier)
             if (*fmt_ptr == '0') {
                 zero_padding = 1;
-                fmt_ptr++;  // Skip the '0' character
+                fmt_ptr++;
             }
-
-            // Extract the width number
             while (*fmt_ptr >= '0' && *fmt_ptr <= '9') {
                 width = width * 10 + (*fmt_ptr - '0');
                 fmt_ptr++;
             }
 
+            // 解析格式化符号
             switch (*fmt_ptr) {
                 case 'd': {
                     int num = va_arg(args, int);
                     char temp_buf[32];
-                    itoa(temp_buf, num, 10);
-
-                    // Handle padding
-                    int len = strlen(temp_buf);
-                    if (width > len) {
-                        if (zero_padding) {
-                            while (len < width) {
-                                *buf_ptr++ = '0'; // Zero padding
-                                len++;
-                            }
-                        } else {
-                            while (len < width) {
-                                *buf_ptr++ = ' '; // Space padding
-                                len++;
-                            }
-                        }
-                    }
+                    itoa_with_padding(temp_buf, num, 10, width, zero_padding);
                     strcpy(buf_ptr, temp_buf);
-                    buf_ptr += len;
+                    buf_ptr += strlen(temp_buf);
                     break;
                 }
                 case 'x': {
-                    int num = va_arg(args, int);
+                    unsigned int num = va_arg(args, unsigned int);
                     char temp_buf[32];
-                    itoa(temp_buf, num, 16);
-
-                    // Handle padding
-                    int len = strlen(temp_buf);
-                    if (width > len) {
-                        if (zero_padding) {
-                            while (len < width) {
-                                *buf_ptr++ = '0'; // Zero padding
-                                len++;
-                            }
-                        } else {
-                            while (len < width) {
-                                *buf_ptr++ = ' '; // Space padding
-                                len++;
-                            }
-                        }
-                    }
+                    itoa_with_padding(temp_buf, num, 16, width, zero_padding);
                     strcpy(buf_ptr, temp_buf);
-                    buf_ptr += len;
+                    buf_ptr += strlen(temp_buf);
                     break;
                 }
                 case 's': {
                     const char *str = va_arg(args, const char *);
                     int len = strlen(str);
 
-                    // Handle padding
+                    // 填充宽度
                     if (width > len) {
                         while (len < width) {
-                            *buf_ptr++ = ' '; // Space padding
+                            *buf_ptr++ = ' ';
                             len++;
                         }
                     }
@@ -210,9 +215,10 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
                     *buf_ptr++ = c;
                     break;
                 }
-                default:
+                default: {
                     *buf_ptr++ = *fmt_ptr;
                     break;
+                }
             }
         } else {
             *buf_ptr++ = *fmt_ptr;
@@ -220,8 +226,9 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
         fmt_ptr++;
     }
 
-    *buf_ptr = '\0';
+    *buf_ptr = '\0'; // 确保字符串以 NULL 结尾
 }
+
 
 // void sprintf(char *buffer, const char *fmt, ...) {
 //     va_list args;

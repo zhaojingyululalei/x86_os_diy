@@ -38,4 +38,5 @@ uint32_t ntohl(uint32_t netlong);
 uint16_t ntohs(uint16_t netshort);
 
 hwaddr_t* get_mac_broadcast(void);
+hwaddr_t* get_mac_empty(void);
 #endif
