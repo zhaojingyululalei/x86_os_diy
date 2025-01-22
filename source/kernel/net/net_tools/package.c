@@ -1,6 +1,6 @@
 #include "package.h"
 #include "net_mmpool.h"
-
+#include "mem/malloc.h"
 static uint8_t pkg_buf[(sizeof(list_node_t) + sizeof(pkg_t)) * PKG_LIMIT];
 static uint8_t pkg_databuf[(sizeof(list_node_t) + sizeof(pkg_dblk_t)) * PKG_DATA_BLK_LIMIT];
 /**
@@ -13,7 +13,7 @@ static mempool_t pkg_datapool;
 int package_pool_init(void)
 {
     int ret;
-    dbg_info("package pool init ing ...\n");
+    //PKG_DBG_PRINT("package pool init ing ...\n");
 
     ret = mempool_init(&pkg_pool, pkg_buf, PKG_LIMIT, sizeof(pkg_t));
     if (ret < 0)
@@ -25,17 +25,17 @@ int package_pool_init(void)
     {
         return ret;
     };
-    dbg_info("package pool init finsh!...\n");
+    //PKG_DBG_PRINT("package pool init finsh!...\n");
     return -1;
 }
 int package_pool_destory(void)
 {
     int ret;
-    dbg_info("package pool destory...\n");
+    //PKG_DBG_PRINT("package pool destory...\n");
     
     mempool_destroy(&pkg_pool);
     mempool_destroy(&pkg_datapool);
-    dbg_info("package pool destory finish! ...\n");
+    //PKG_DBG_PRINT("package pool destory finish! ...\n");
     return 0;
 }
 
@@ -247,10 +247,10 @@ int package_expand_front_align(pkg_t *package, int ex_size)
 /*show*/
 int package_show_pool_info(void)
 {
-    dbg_info("package pool info.....................\n");
-    dbg_info("package pool free pkg cnt is %d\n", mempool_freeblk_cnt(&pkg_pool));
-    dbg_info("pkg data pool free blk cnt is %d\n", mempool_freeblk_cnt(&pkg_datapool));
-    dbg_info("\n");
+    PKG_DBG_PRINT("package pool info.....................\n");
+    PKG_DBG_PRINT("package pool free pkg cnt is %d\n", mempool_freeblk_cnt(&pkg_pool));
+    PKG_DBG_PRINT("pkg data pool free blk cnt is %d\n", mempool_freeblk_cnt(&pkg_datapool));
+    PKG_DBG_PRINT("\n");
     return 0;
 }
 int package_show_info(pkg_t *package)
@@ -266,20 +266,20 @@ int package_show_info(pkg_t *package)
         count++;
         cur = cur->next;
     }
-    dbg_info("package info ......................\n");
-    dbg_info("pkg total size is: %d\n", package->total);
-    dbg_info("pkg brother link list count(include itself): %d\n", count);
+    PKG_DBG_PRINT("package info ......................\n");
+    PKG_DBG_PRINT("pkg total size is: %d\n", package->total);
+    PKG_DBG_PRINT("pkg brother link list count(include itself): %d\n", count);
     list_node_t *fnode = list_first(&package->pkgdb_list);
     pkg_dblk_t *curblk = list_node_parent(fnode, pkg_dblk_t, node);
     while (curblk)
     {
-        dbg_info("blk[%d].size=%d, .offset=%d\n",
+        PKG_DBG_PRINT("blk[%d].size=%d, .offset=%d\n",
                  i++, curblk->size, curblk->offset);
         curblk = package_get_next_datablk(curblk);
     }
-    dbg_info("pkg sum data block cnt is %d\n", i - 1);
+    PKG_DBG_PRINT("pkg sum data block cnt is %d\n", i - 1);
   
-    dbg_info("\n");
+    PKG_DBG_PRINT("\n");
     return 0;
 }
 /**
@@ -860,11 +860,11 @@ int package_memcpy(pkg_t *dest_pkg, int dest_offset, pkg_t *src_pkg, int src_off
     package_lseek(dest_pkg, dest_offset);
     package_lseek(src_pkg, src_offset);
 
-    uint8_t *buf = malloc(len);
+    uint8_t *buf = sys_malloc(len);
 
     ret = package_read(src_pkg, buf, len);
     package_write(dest_pkg, buf, ret);
-    free(buf);
+    sys_free(buf);
     // un//lock(&pkg_locker);
 
     return 0;
@@ -878,19 +878,19 @@ int package_memset(pkg_t *package, int offset, uint8_t value, int len)
     }
     int ret;
 
-    uint8_t *arr = malloc(len);
+    uint8_t *arr = sys_malloc(len);
     memset(arr, 0, len);
     // lock(&pkg_locker);
     ret = package_write_pos(package, arr, len, offset);
     if (ret < 0)
     {
         // un//lock(&pkg_locker);
-        free(arr);
+        sys_free(arr);
         return ret;
     }
 
     // un//lock(&pkg_locker);
-    free(arr);
+    sys_free(arr);
 
     return 0;
 }
@@ -955,25 +955,26 @@ int package_copy(pkg_t *dest_pkg, pkg_t *src_pkg)
 {
     return package_memcpy(dest_pkg, 0, src_pkg, 0, src_pkg->total);
 }
-void package_print(pkg_t *pkg)
+void package_print(pkg_t *pkg,int position)
 {
     int count = 0;
-    uint8_t *rbuf = malloc(pkg->total);
-    package_lseek(pkg, 0);
-    package_read(pkg, rbuf, pkg->total);
-    for (int i = 0; i < pkg->total; ++i)
+    int len = pkg->total-position;
+    uint8_t *rbuf = sys_malloc(len);
+    package_lseek(pkg, position);
+    package_read(pkg, rbuf, len);
+    for (int i = 0; i < len; ++i)
     {
 
         if (i % 10 == 0)
         {
-            dbg_info("\r\n");
+            PKG_DBG_PRINT("\r\n");
         }
-        dbg_info("%02x ", rbuf[i]);
+        PKG_DBG_PRINT(" %02x", rbuf[i]);
         count++;
     }
-    dbg_info("\r\n");
-    dbg_info("sum:%d byte\r\n", count);
-    free(rbuf);
+    PKG_DBG_PRINT("\r\n");
+    PKG_DBG_PRINT("sum:%d byte\r\n", count);
+    sys_free(rbuf);
 }
 
 /*整合数据包头,并返回所需数据position的首地址*/

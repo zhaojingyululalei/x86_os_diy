@@ -204,7 +204,7 @@ static int rtl8139_open(struct _netif_t *p_netif, void *ops_data)
     netif->hwaddr.addr[5] = inb(priv->ioaddr + 5);
 
     netif->info.type = NETIF_TYPE_ETH;
-    netif->mtu = NETIF_MTU_DEFAULT;
+    netif->mtu = ETHER_MTU_DEFAULT;
 
     // 系统还没初始化完毕, 启用所有与接收和发送相关的中断
     outw(priv->ioaddr + IMR, 0xFFFF);

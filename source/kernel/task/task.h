@@ -7,13 +7,9 @@
 #define TASK_SCHED_POLICY_DEFAULT   SCHED_FIFO
 #define USR_STACK_SIZE_DEFAULT  (2 * MEM_PAGE_SIZE)
 #define KERNEL_STACK_SIZE_DEFAULT   MEM_PAGE_SIZE
-/*pid*/
-#define PID_MAX_NR 1024
-#define TASK_MAX_NR PID_MAX_NR
-//pid位图
-#define BITMAP_SIZE ((PID_MAX_NR + 7) / 8) 
 
 
+#include "pid.h"
 #define DEFINE_PROCESS_FUNC(name)            void* name(void* arg)
 typedef void*(*process_func_t)(void*);
 /**
@@ -30,10 +26,7 @@ typedef struct _tss_t
     uint32_t iomap;
 } tss_t;
 
-typedef struct _pidalloc_t
-{
-    uint8_t bitmap[BITMAP_SIZE]; // 位图，记录 PID 的使用情况
-} pidalloc_t;
+
 
 typedef struct _task_attr_t{
     enum {
@@ -102,14 +95,9 @@ typedef struct _schedulor_t
 
 }schedulor_t;
 
-/*pid*/
-extern pidalloc_t pidallocter;
-void pidalloc_init(pidalloc_t *alloc);
-int pid_is_allocated(pidalloc_t *alloc, int pid);
-int pid_alloc(pidalloc_t *alloc);
-void pid_free(pidalloc_t *alloc, int pid);
-void pidalloc_print(pidalloc_t *alloc);
 
+
+extern  pidalloc_t pidallocter;
 /*task*/
 int task_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task_attr_t *attr);
 task_t* task_alloc(void);

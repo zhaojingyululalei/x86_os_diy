@@ -30,7 +30,7 @@ typedef struct _netif_info_t
 } netif_info_t;
 
 /**
- * 1.不同类型网卡的驱动程序接口
+ * 1.不同类型网卡的驱动程序接口,如rtl8139 ,veth...
  * */
 struct _netif_t;
 typedef struct _netif_ops_t
@@ -44,7 +44,7 @@ typedef struct _netif_ops_t
 } netif_ops_t;
 
 /**
- *  链路层处理接口，如以太网协议
+ *  链路层处理接口，如以太网协议，wifi...
  */
 typedef struct _link_layer_t
 {
@@ -67,7 +67,7 @@ typedef struct _netif_t
         NETIF_STATE_DIE
     } state;
 
-   
+    int id;
 
     hwaddr_t hwaddr;
     int mtu;
@@ -104,8 +104,13 @@ int netif_put_pkg_into_outq(netif_t* netif,pkg_t* package,int timeout);
 int netif_put_pkg_into_inq(netif_t* netif,pkg_t* package,int timeout);
 
 netif_t *find_netif_by_name(const char *if_name);
+void netif_show_info(netif_t* netif);
+void netif_show_list(void);
 
 
+int netif_set_ip(netif_t *target_if,const char* ip_str);
+int netif_set_gateway(netif_t *target_if,const char* ip_str);
+int netif_set_mask(netif_t *target_if,const char* ip_str);
 
 #include "debug.h"
 

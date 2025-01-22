@@ -6,7 +6,7 @@
 #include "cpu_cfg.h"
 #include "math.h"
 #include "cpu_instr.h"
-
+ pidalloc_t pidallocter;
 task_t task_pool[TASK_MAX_NR];
 
 int tss_init(task_t *task, int type, ph_addr_t entry, ph_addr_t stack_top, task_attr_t *attr)

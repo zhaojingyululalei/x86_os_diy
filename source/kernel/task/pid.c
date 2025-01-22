@@ -1,7 +1,7 @@
 #include "task.h"
 #include "debug.h"
 
-pidalloc_t pidallocter;
+
 /**
  * 初始化 PID 分配器
  * @param alloc PID 分配器

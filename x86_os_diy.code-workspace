@@ -59,7 +59,10 @@
 			"buffer": "c",
 			"internet": "c",
 			"socket": "c",
-			"netif.h": "c"
+			"netif.h": "c",
+			"ipaddr.h": "c",
+			"string.h": "c",
+			"ether.h": "c"
 		}
 	}
 }

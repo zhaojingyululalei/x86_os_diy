@@ -3,6 +3,7 @@
 #include "list.h"
 #include "net_tools/msgQ.h"
 #include "string.h"
+#include "netif.h"
 static mempool_t net_msg_pool;
 static uint8_t net_msg_buf[(sizeof(net_msg_t)+sizeof(list_node_t))*NET_MSG_MAX_NR];
 
@@ -12,7 +13,7 @@ void net_msg_init(void)
 
 }
 
-net_msg_t* net_msg_create(net_msg_type_t type,void* data)
+net_msg_t* net_msg_create(netif_t *netif, net_msg_type_t type,void* data)
 {
     if(!data)
     {
@@ -37,6 +38,7 @@ net_msg_t* net_msg_create(net_msg_type_t type,void* data)
         {
             message->type = type;
             message->package = pkg;
+            message->netif = netif;
             return message;
         }
         break;
@@ -53,6 +55,7 @@ net_msg_t* net_msg_create(net_msg_type_t type,void* data)
 
 void net_msg_free(net_msg_t* message)
 {
+    
     memset(message,0,sizeof(net_msg_t));
     mempool_free_blk(&net_msg_pool,message);
 }

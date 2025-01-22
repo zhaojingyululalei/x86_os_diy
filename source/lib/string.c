@@ -117,34 +117,96 @@ void sprintf(char *buffer, const char *fmt, ...) {
     va_end(args);
 }
 
-// 格式化字符串输出函数 vsprintf
 void vsprintf(char *buffer, const char *fmt, va_list args) {
     char *buf_ptr = buffer;
     const char *fmt_ptr = fmt;
+
     while (*fmt_ptr) {
         if (*fmt_ptr == '%' && *(fmt_ptr + 1) != '%') {
-            fmt_ptr++;
+            fmt_ptr++;  // Skip the '%' character
+
+            // Handle width and flags
+            int width = 0;
+            int zero_padding = 0;
+
+            // Check for width (numbers before the specifier)
+            if (*fmt_ptr == '0') {
+                zero_padding = 1;
+                fmt_ptr++;  // Skip the '0' character
+            }
+
+            // Extract the width number
+            while (*fmt_ptr >= '0' && *fmt_ptr <= '9') {
+                width = width * 10 + (*fmt_ptr - '0');
+                fmt_ptr++;
+            }
+
             switch (*fmt_ptr) {
                 case 'd': {
                     int num = va_arg(args, int);
-                    itoa(buf_ptr, num, 10);
-                    buf_ptr += strlen(buf_ptr);
+                    char temp_buf[32];
+                    itoa(temp_buf, num, 10);
+
+                    // Handle padding
+                    int len = strlen(temp_buf);
+                    if (width > len) {
+                        if (zero_padding) {
+                            while (len < width) {
+                                *buf_ptr++ = '0'; // Zero padding
+                                len++;
+                            }
+                        } else {
+                            while (len < width) {
+                                *buf_ptr++ = ' '; // Space padding
+                                len++;
+                            }
+                        }
+                    }
+                    strcpy(buf_ptr, temp_buf);
+                    buf_ptr += len;
                     break;
                 }
                 case 'x': {
                     int num = va_arg(args, int);
-                    itoa(buf_ptr, num, 16);
-                    buf_ptr += strlen(buf_ptr);
+                    char temp_buf[32];
+                    itoa(temp_buf, num, 16);
+
+                    // Handle padding
+                    int len = strlen(temp_buf);
+                    if (width > len) {
+                        if (zero_padding) {
+                            while (len < width) {
+                                *buf_ptr++ = '0'; // Zero padding
+                                len++;
+                            }
+                        } else {
+                            while (len < width) {
+                                *buf_ptr++ = ' '; // Space padding
+                                len++;
+                            }
+                        }
+                    }
+                    strcpy(buf_ptr, temp_buf);
+                    buf_ptr += len;
                     break;
                 }
                 case 's': {
                     const char *str = va_arg(args, const char *);
+                    int len = strlen(str);
+
+                    // Handle padding
+                    if (width > len) {
+                        while (len < width) {
+                            *buf_ptr++ = ' '; // Space padding
+                            len++;
+                        }
+                    }
                     strcpy(buf_ptr, str);
-                    buf_ptr += strlen(str);
+                    buf_ptr += len;
                     break;
                 }
                 case 'c': {
-                    char c = (char) va_arg(args, int);  // `%c` 格式的字符参数
+                    char c = (char) va_arg(args, int);
                     *buf_ptr++ = c;
                     break;
                 }
@@ -157,8 +219,59 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
         }
         fmt_ptr++;
     }
+
     *buf_ptr = '\0';
 }
+
+// void sprintf(char *buffer, const char *fmt, ...) {
+//     va_list args;
+//     va_start(args, fmt);
+//     vsprintf(buffer, fmt, args);
+//     va_end(args);
+// }
+
+// // 格式化字符串输出函数 vsprintf
+// void vsprintf(char *buffer, const char *fmt, va_list args) {
+//     char *buf_ptr = buffer;
+//     const char *fmt_ptr = fmt;
+//     while (*fmt_ptr) {
+//         if (*fmt_ptr == '%' && *(fmt_ptr + 1) != '%') {
+//             fmt_ptr++;
+//             switch (*fmt_ptr) {
+//                 case 'd': {
+//                     int num = va_arg(args, int);
+//                     itoa(buf_ptr, num, 10);
+//                     buf_ptr += strlen(buf_ptr);
+//                     break;
+//                 }
+//                 case 'x': {
+//                     int num = va_arg(args, int);
+//                     itoa(buf_ptr, num, 16);
+//                     buf_ptr += strlen(buf_ptr);
+//                     break;
+//                 }
+//                 case 's': {
+//                     const char *str = va_arg(args, const char *);
+//                     strcpy(buf_ptr, str);
+//                     buf_ptr += strlen(str);
+//                     break;
+//                 }
+//                 case 'c': {
+//                     char c = (char) va_arg(args, int);  // `%c` 格式的字符参数
+//                     *buf_ptr++ = c;
+//                     break;
+//                 }
+//                 default:
+//                     *buf_ptr++ = *fmt_ptr;
+//                     break;
+//             }
+//         } else {
+//             *buf_ptr++ = *fmt_ptr;
+//         }
+//         fmt_ptr++;
+//     }
+//     *buf_ptr = '\0';
+// }
 
 
 

@@ -1,6 +1,9 @@
 #include "net_syscall.h"
 #include "dev/chr/rtl8139.h"
-
+#include "ipaddr.h"
+#include "ether.h"
+static int netif_id = 0;
+/*普通用户能干的事情*/
 static rtl8139_priv_t priv;
 /**
  * 创建netif结构
@@ -12,18 +15,21 @@ int sys_netif_create(const char *if_name, netif_type_t type)
     target = netif_alloc();
     if (target)
     {
+        target->id = netif_id++;
         target->info.type = type;
         target->state = NETIF_STATE_CLOSE;
         strcpy(target->info.name, if_name);
-        target->mtu = NETIF_MTU_DEFAULT;
+        
 
         // 装驱动 并初始化相应硬件(调用open初始化)
         switch (type)
         {
         case NETIF_TYPE_ETH:
-            target->ops = &netdev8139_ops; // 安装
+            target->ops = &netdev8139_ops; // 安装网卡驱动
             target->ex_data = &priv;
-            
+
+            target->link_ops = &ether_ops; //安装链路层驱动
+            target->mtu = ETHER_MTU_DEFAULT;
             break;
 
         default:
@@ -62,6 +68,10 @@ int sys_netif_open(const char *if_name)
     }
     else
     {
+        if(target_if->state!=NETIF_STATE_CLOSE)
+        {
+            dbg_error("netif_open fail:netif state is not close,can not open\r\n");
+        }
         // 找到了接口  打开接口
         target_if->state = NETIF_STATE_OPEN;
         // 初始化netif接口的所有资源
@@ -85,15 +95,29 @@ int sys_netif_active(const char *if_name)
     {
         if(target_if->state != NETIF_STATE_OPEN)
         {
-            dbg_error("8139 is not in the open state and cannot be activated\r\n");
+            dbg_error("active fail:netif is not in the open state and cannot be activated\r\n");
             return -3;
         }
         ret = target_if->ops->open(target_if, &priv); // 初始化8139网卡，中断开始工作
         if (ret < 0)
         {
-            dbg_error("8139 failed to function properly, initialization failed\r\n");
+            dbg_error("active fail:target_if->ops->open failed\r\n");
             return -1;
         }
+        if(!target_if->link_ops)
+        {
+            dbg_error("active fail:link drive not installed\r\n");
+            return -2;
+        }
+        //链路层的一些前戏，比如发送arp anounce包，通知自己的网卡ip对应的mac
+        ret = target_if->link_ops->open(target_if); 
+        if(ret < 0)
+        {
+            dbg_error("active fail:target_if->link_ops->open fail\r\n");
+            target_if->ops->close(target_if); //关闭网卡
+            return -3;
+        }
+
 
         target_if->state = NETIF_STATE_ACTIVE;
 
@@ -163,6 +187,62 @@ int sys_netif_close(const char *if_name)
     }
     return 0;
 }
+
+
+
+void sys_netif_show(void)
+{
+    netif_show_list();
+}
+
+/*用户设置了新ip，还需要重启协议栈之类的工作，记得加*/
+int sys_netif_set_ip(const char* if_name,const char* ip_str)
+{
+    NETIF_DBG_PRINT("new ip set,restart the protocol stack\r\n");
+    int ret;
+    /*遍历网络接口链表，找名字为if_name的接口*/
+    netif_t *target_if = NULL;
+    target_if = find_netif_by_name(if_name);
+    if(!target_if)
+    {
+        return -1;
+    }
+
+    return netif_set_ip(target_if,ip_str);
+
+
+}
+int sys_netif_set_gateway(const char* if_name,const char* ip_str)
+{
+    NETIF_DBG_PRINT("new ip set,restart the protocol stack\r\n");
+    int ret;
+    /*遍历网络接口链表，找名字为if_name的接口*/
+    netif_t *target_if = NULL;
+    target_if = find_netif_by_name(if_name);
+    if(!target_if)
+    {
+        return -1;
+    }
+    return netif_set_gateway(target_if,ip_str);
+
+    
+}
+int sys_netif_set_mask(const char* if_name,const char* ip_str)
+{
+    NETIF_DBG_PRINT("new ip set,restart the protocol stack\r\n");
+    int ret;
+    /*遍历网络接口链表，找名字为if_name的接口*/
+    netif_t *target_if = NULL;
+    target_if = find_netif_by_name(if_name);
+    if(!target_if)
+    {
+        return -1;
+    }
+
+    return netif_set_mask(target_if,ip_str);
+}
+
+
 
 
 

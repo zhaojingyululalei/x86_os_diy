@@ -7,9 +7,11 @@ static uint8_t netif_buf[NETIF_MAX_NR * (sizeof(netif_t) + sizeof(list_node_t))]
 static list_t netif_list;
 static lock_t netif_list_locker;
 
+#include "task/pid.h"
+static pidalloc_t netid_allocer;
 void netif_init(void)
 {
-
+    pidalloc_init(&netid_allocer);
     mempool_init(&netif_pool, netif_buf, NETIF_MAX_NR, sizeof(netif_t));
     list_init(&netif_list);
     lock_init(&netif_list_locker);
@@ -24,19 +26,26 @@ void netif_destory(void)
 
 netif_t *netif_alloc(void)
 {
-    return (netif_t *)mempool_alloc_blk(&netif_pool, -1);
+    netif_t *netif = (netif_t *)mempool_alloc_blk(&netif_pool, -1);
+    if (netif)
+    {
+        netif->id = pid_alloc(&netid_allocer);
+    }
+    return;
 }
 int netif_free(netif_t *netif)
 {
     int ret;
-    while(!msgQ_is_empty(&netif->in_q))
+    pid_free(&netid_allocer, netif->id);
+
+    while (!msgQ_is_empty(&netif->in_q))
     {
-        pkg_t* package = msgQ_dequeue(&netif->in_q,-1);
+        pkg_t *package = msgQ_dequeue(&netif->in_q, -1);
         package_collect(package);
     }
-    while(!msgQ_is_empty(&netif->out_q))
+    while (!msgQ_is_empty(&netif->out_q))
     {
-        pkg_t* package = msgQ_dequeue(&netif->out_q,-1);
+        pkg_t *package = msgQ_dequeue(&netif->out_q, -1);
         package_collect(package);
     }
     msgQ_destory(&netif->in_q);
@@ -155,4 +164,93 @@ netif_t *find_netif_by_name(const char *if_name)
         return -1;
     }
     return target_if;
+}
+
+void netif_show_info(netif_t *netif)
+{
+    // 类型转换为字符串
+    const char *type_str = "Unknown";
+    switch (netif->info.type)
+    {
+    case NETIF_TYPE_NONE:
+        type_str = "None";
+        break;
+    case NETIF_TYPE_LOOP:
+        type_str = "Loopback";
+        break;
+    case NETIF_TYPE_ETH:
+        type_str = "Ethernet";
+        break;
+    }
+
+    // 转换 IP 地址、网关和掩码为字符串
+    char ip_str[16], gateway_str[16], mask_str[16];
+    ipaddr_n2s(&netif->info.ipaddr, ip_str, sizeof(ip_str));
+    ipaddr_n2s(&netif->info.gateway, gateway_str, sizeof(gateway_str));
+    ipaddr_n2s(&netif->info.mask, mask_str, sizeof(mask_str));
+
+    // 格式化 MAC 地址为字符串
+    char mac_str[18];
+    mac_n2s(&netif->hwaddr,mac_str);
+
+    // 打印信息
+    dbg_info("netif_id:%d\r\n",netif->id);
+    dbg_info("netif_name:%s\r\n",netif->info.name);
+    dbg_info("netif_mac:%s\r\n",mac_str);
+    dbg_info("netif_ip:%s\r\n",ip_str);
+    dbg_info("netif_gateway:%s\r\n",gateway_str);
+    dbg_info("netif_mask:%s\r\n",mask_str);
+}
+void netif_show_list(void)
+{
+    
+
+    netif_t* cur = netif_first();
+    while (cur)
+    {
+        netif_show_info(cur);
+        cur = netif_next(cur);
+    }
+}
+
+int netif_set_ip(netif_t *target_if,const char* ip_str)
+{
+    int ret;
+    
+
+    ret = ipaddr_s2n(ip_str,&target_if->info.ipaddr);
+    if(ret < 0)
+    {
+        dbg_error("set ip fail\r\n");
+        return -2;
+    }
+    return 0;
+
+
+}
+int netif_set_gateway(netif_t *target_if,const char* ip_str)
+{
+    int ret;
+    
+
+    ret = ipaddr_s2n(ip_str,&target_if->info.gateway);
+    if(ret < 0)
+    {
+        dbg_error("set ip fail\r\n");
+        return -2;
+    }
+    return 0;
+}
+int netif_set_mask(netif_t *target_if,const char* ip_str)
+{
+    int ret;
+    
+
+    ret = ipaddr_s2n(ip_str,&target_if->info.mask);
+    if(ret < 0)
+    {
+        dbg_error("set ip fail\r\n");
+        return -2;
+    }
+    return 0;
 }
