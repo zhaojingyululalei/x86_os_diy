@@ -3,6 +3,7 @@
 #include "net_tools/net_threads.h"
 #include "net_msg.h"
 #include "net_msg_queue.h"
+#include "ipv4.h"
 /**
  * 数据包进入协议栈进行处理
  */
@@ -12,13 +13,22 @@ static int netif_in(netif_t *netif, pkg_t *package)
     netif->recv_pkg_cnt++;
     if (!netif->link_ops)
     {
-        dbg_error("no link layer ops:ether? wifi?\r\n");
-        return -1;
+        if (netif->info.type == NETIF_TYPE_LOOP)
+        {
+            // loop类型的接口，没有链路层，mac地址为全0
+            // 因此直接交给ipv4层处理
+            return ipv4_in(netif, package);
+        }
+        else
+        {
+            dbg_error("no link layer ops:ether? wifi?\r\n");
+            return -1;
+        }
     }
 
-    //调用链路层处理，例如ether层
-    ret = netif->link_ops->in(netif,package);
-    if(ret < 0)
+    // 调用链路层处理，例如ether层
+    ret = netif->link_ops->in(netif, package);
+    if (ret < 0)
     {
         dbg_warning("link layer ops handler a pkg fail\r\n");
         return -2;
@@ -35,7 +45,8 @@ static void handle(void)
     // 依次取出msgQ中的数据进行处理
     while (1)
     {
-        net_msg_t *msg = net_msg_dequeue(-1);
+        // 取消息，最多等第一个定时器的时间
+        net_msg_t *msg = net_msg_dequeue(soft_timer_get_first_time());
         if (!msg)
         {
             return; // 直到取不出来为止，取不出来说明队列空了，返回
@@ -71,6 +82,7 @@ DEFINE_PROCESS_FUNC(worker)
     while (1)
     {
         netif_t *netif = netif_first();
+        uint32_t before = get_cur_time_ms();
         // 遍历每一块网卡,把所有数据放入msgQ中
         while (netif)
         {
@@ -78,6 +90,8 @@ DEFINE_PROCESS_FUNC(worker)
             pkg_t *package = netif_get_pkg_from_inq(netif, -1);
             if (!package)
             {
+                // 没取到包，就说明这块网卡的数据取完了，找下一块
+                netif = netif_next(netif);
                 continue;
             }
             net_msg_t *pkg_msg = net_msg_create(netif, NET_MSG_TYPE_PKG, package);
@@ -94,15 +108,17 @@ DEFINE_PROCESS_FUNC(worker)
                 package_collect(pkg_msg->package);
                 net_msg_free(pkg_msg);
             }
-            netif = netif_next(netif);
         }
 
         // 处理消息队列的数据
         handle();
+        uint32_t after = get_cur_time_ms();
+        soft_timer_scan_list(after - before);
     }
 }
 
 void net_worker_init(void)
 {
+    // 注意：这创建的是内核线程，没有堆区。
     thread_create(worker);
 }

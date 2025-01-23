@@ -9,12 +9,12 @@ void net_init(void)
 {
     //数据包分配结构
     package_pool_init();
+    soft_timer_init();
     //核心的消息队列 以及消息分配结构
     net_mq_init();
     net_msg_init();
     netif_init();
     net_worker_init();
-    soft_timer_init();
     arp_init();
 
 

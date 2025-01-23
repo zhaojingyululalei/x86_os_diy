@@ -969,7 +969,7 @@ void package_print(pkg_t *pkg,int position)
         {
             PKG_DBG_PRINT("\r\n");
         }
-        PKG_DBG_PRINT(" %02x", rbuf[i]);
+        PKG_DBG_PRINT(" %02x ", rbuf[i]);
         count++;
     }
     PKG_DBG_PRINT("\r\n");

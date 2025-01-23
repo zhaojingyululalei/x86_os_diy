@@ -27,7 +27,7 @@ void netif_destory(void)
 netif_t *netif_alloc(void)
 {
     netif_t *netif = (netif_t *)mempool_alloc_blk(&netif_pool, -1);
-    memset(netif,0,sizeof(netif_t));
+    memset(netif, 0, sizeof(netif_t));
     if (netif)
     {
         netif->id = pid_alloc(&netid_allocer);
@@ -148,20 +148,29 @@ int netif_put_pkg_into_inq(netif_t *netif, pkg_t *package, int timeout)
 int netif_out(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
 {
     int ret;
-   
+
     if (netif->link_ops)
     {
         return netif->link_ops->out(netif, dest_ip, package);
     }
     else
     {
-        ret = netif_put_pkg_into_outq(netif, package, -1); // 将包放入输出队列
-        if (ret < 0)
+        if (netif->info.type == NETIF_TYPE_LOOP)
         {
-            // 包都没放进去，pkg可以回收了
-            return -2;
+            //如果是回环网口，直接把输出的包放到loop的输入队列中
+            ret = netif_put_pkg_into_inq(netif, package, -1); 
+            if (ret < 0)
+            {
+                // 包都没放进去，pkg可以回收了
+                return -2;
+            }
+            
         }
-        return netif->ops->send(netif); // 调用8139驱动输出数据
+        else
+        {
+            dbg_error("has never been installed link layer dirives\r\n");
+            return -3;
+        }
     }
 }
 
@@ -189,6 +198,7 @@ netif_t *find_netif_by_name(const char *if_name)
 
 void netif_show_info(netif_t *netif)
 {
+#ifdef NETIF_DBG
     // 类型转换为字符串
     const char *type_str = "Unknown";
     switch (netif->info.type)
@@ -221,16 +231,18 @@ void netif_show_info(netif_t *netif)
     dbg_info("netif_ip:%s\r\n", ip_str);
     dbg_info("netif_gateway:%s\r\n", gateway_str);
     dbg_info("netif_mask:%s\r\n", mask_str);
+#endif
 }
 void netif_show_list(void)
 {
-
+#ifdef NETIF_DBG
     netif_t *cur = netif_first();
     while (cur)
     {
         netif_show_info(cur);
         cur = netif_next(cur);
     }
+#endif
 }
 
 int netif_set_ip(netif_t *target_if, const char *ip_str)

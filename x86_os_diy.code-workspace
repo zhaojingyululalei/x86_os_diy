@@ -62,7 +62,9 @@
 			"netif.h": "c",
 			"ipaddr.h": "c",
 			"string.h": "c",
-			"ether.h": "c"
+			"ether.h": "c",
+			"ipv4.h": "c",
+			"soft_timer.h": "c"
 		}
 	}
 }

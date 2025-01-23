@@ -3,6 +3,7 @@
 #include "list.h" 
 #include "types.h"
 #include "net_cfg.h"
+#include "mem/malloc.h"
 #define SOFT_TIMER_NAME_SIZE 32
 typedef enum _soft_timer_type_t
 {
@@ -33,11 +34,11 @@ void soft_timer_init(void);
 
 static inline soft_timer_t* soft_timer_alloc(void)
 {
-    return (soft_timer_t*)malloc(sizeof(soft_timer_t));
+    return (soft_timer_t*)sys_malloc(sizeof(soft_timer_t));
 }
 static inline void soft_timer_free(soft_timer_t* timer)
 {
-    free(timer);
+    sys_free(timer);
 }
 int soft_timer_add(soft_timer_t* timer,soft_timer_type_t type,int ms,const char* name,soft_timer_handler handle_func,void* arg,void** ret);
 int soft_timer_remove(soft_timer_t* timer);

@@ -6,7 +6,7 @@
 #include "net_tools/package.h"
 #include "netif.h"
 #include "net_tools/net_mmpool.h"
-
+#include "net_tools/soft_timer.h"
 
 
 #define ARP_HARD_TYPE_ETHER 1
@@ -26,6 +26,9 @@ typedef struct _arp_entry_t
 
     netif_t* netif;
     list_t pkg_list;
+
+    int tmo;   //每隔多久更新一次arp表
+    int retry; //处于waiting的时间最长维持多久
 
     list_node_t node;
 }arp_entry_t;
@@ -66,6 +69,8 @@ typedef struct _arp_parse_t
     ipaddr_t dest_ip;
     char dest_ip_str[20];
 }arp_parse_t;
+
+extern soft_timer_t arp_timer ;
 void arp_init(void);
 
 /*arp cache table操作*/

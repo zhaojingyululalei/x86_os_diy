@@ -50,13 +50,12 @@ DEFINE_PROCESS_FUNC(world)
     }
     return NULL;
 }
-
+task_t cp_first_task;
 void jmp_to_first_task(void)
 {
-    task_t *curr = get_cur_task();
-    ASSERT(curr != 0);
-
-    tss_t *tss = &(curr->tss);
+    
+    task_t* first_task = &cp_first_task;
+    tss_t *tss = &(first_task->tss);
 
     // 也可以使用类似boot跳loader中的函数指针跳转
     // 这里用jmp是因为后续需要使用内联汇编添加其它代码
@@ -77,6 +76,7 @@ void jmp_to_first_task(void)
 // static rtl8139_priv_t priv;
 
 extern void net_test(void);
+
 void kernel_init(boot_info_t *boot_info)
 {
     boot_inform = boot_info;
@@ -94,20 +94,24 @@ void kernel_init(boot_info_t *boot_info)
     // create_kernel_process(&tworld, world);
 
     first_task_init();
+    task_t *first_task = get_cur_task();
+    ASSERT(first_task != 0);
+    cp_first_task = *first_task;
     net_init();
     irq_enable_global();
-    // rtl8139_open(&priv);
+    
     net_test();
-    while (1)
-    {
-        //dbg_info("eat an apple\r\n");
-        sys_sleep_ms(1000);
-    }
+    // while (1)
+    // {
+    //     //dbg_info("eat an apple\r\n");
+    //     sys_sleep_ms(1000);
+    // }
 
     jmp_to_first_task();
     while (1)
     {
-
+        //如果执行到这里就不对
+        dbg_info("init wrong\r\n");
         sys_sleep_ms(1000);
     }
 }

@@ -1,5 +1,6 @@
 #include "soft_timer.h"
 #include "debug.h"
+#include "string.h"
 //安时间有序插入
 static list_t soft_timer_list;
 

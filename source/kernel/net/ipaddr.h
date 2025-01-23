@@ -39,4 +39,10 @@ uint16_t ntohs(uint16_t netshort);
 
 hwaddr_t* get_mac_broadcast(void);
 hwaddr_t* get_mac_empty(void);
+
+uint32_t ipaddr_get_host(ipaddr_t *ip,ipaddr_t *mask);
+uint32_t ipaddr_get_net(ipaddr_t * ip,ipaddr_t *mask);
+
+int is_local_boradcast(ipaddr_t* host_ip,ipaddr_t *host_mask, ipaddr_t *ip);
+int is_global_boradcast(ipaddr_t *ip);
 #endif

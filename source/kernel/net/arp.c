@@ -1,5 +1,6 @@
 #include "arp.h"
 #include "ether.h"
+#include "net_tools/soft_timer.h"
 arp_cache_table_t arp_cache_table;
 
 static int arp_show_cache_entry(arp_entry_t *entry)
@@ -84,7 +85,7 @@ static void arp_entry_send_all(arp_entry_t *entry)
 }
 void arp_show_cache_list(void)
 {
-
+#ifdef ARP_DBG
     list_t *list = &arp_cache_table.entry_list;
     list_node_t *cur = list->first;
 
@@ -97,6 +98,7 @@ void arp_show_cache_list(void)
         cur = cur->next;
     }
     ARP_DBG_PRINT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\r\n");
+#endif
 }
 void arp_cache_table_init(arp_cache_table_t *table)
 {
@@ -252,14 +254,17 @@ int arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int forc
     {
         new_entry->ipaddr.q_addr = ip->q_addr;
         new_entry->netif = netif;
+        new_entry->retry = ARP_ENTRY_RETRY;
         if (hwaddr)
         {
             new_entry->state = ARP_ENTRY_STATE_RESOLVED;
             memcpy(new_entry->hwaddr.addr, hwaddr->addr, MACADDR_ARRAY_LEN);
+            new_entry->tmo = ARP_ENTRY_TMO_STABLE;
         }
         else
         {
             new_entry->state = ARP_ENTRY_STATE_WAITING;
+            new_entry->tmo = ARP_ENTRY_TMO_RESOLVING;
         }
         arp_cache_insert_entry(&arp_cache_table, new_entry);
         return 0;
@@ -283,6 +288,7 @@ pkg_t *arp_entry_remove_pkg(arp_entry_t *entry, pkg_t *pkg)
 
 void arp_show_arp(arp_t *arp)
 {
+#ifdef ARP_DBG
     arp_parse_t parse;
     arp_parse_pkg(arp, &parse);
     ARP_DBG_PRINT("-----\r\n");
@@ -295,6 +301,7 @@ void arp_show_arp(arp_t *arp)
     ARP_DBG_PRINT("src ip:%s\r\n", parse.src_ip_str);
     ARP_DBG_PRINT("dest mac:%s\r\n", parse.dest_mac_str);
     ARP_DBG_PRINT("dest ip:%s\r\n", parse.dest_ip_str);
+#endif
 }
 int arp_parse_pkg(arp_t *arp, arp_parse_t *parse)
 {
@@ -431,6 +438,7 @@ int arp_in(netif_t *netif, pkg_t *package)
             if (entry->state == ARP_ENTRY_STATE_WAITING)
             {
                 entry->state = ARP_ENTRY_STATE_RESOLVED;
+                entry->tmo = ARP_ENTRY_TMO_STABLE;
                 memcpy(entry->hwaddr.addr, arp->src_mac, MACADDR_ARRAY_LEN);
                 arp_entry_send_all(entry);
             }
@@ -472,7 +480,56 @@ int arp_reslove(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
     return 0;
 }
 
+void arp_cache_scan_period(void *arg)
+{
+    list_node_t *cur = arp_cache_table.entry_list.first;
+    while (cur)
+    {
+        list_node_t *next = cur->next;
+        arp_entry_t *entry = list_node_parent(cur, arp_entry_t, node);
+        if (--entry->tmo == 0)
+        {
+            switch (entry->state)
+            {
+            case ARP_ENTRY_STATE_RESOLVED:
+                ipaddr_t dest_ip;
+                dest_ip.q_addr = entry->ipaddr.q_addr;
+                entry->tmo = ARP_ENTRY_TMO_RESOLVING;
+                entry->retry = ARP_ENTRY_RETRY;
+                entry->state = ARP_ENTRY_STATE_WAITING;
+                // 重新请求mac地址
+                arp_send_request(entry->netif, &dest_ip);
+                break;
+            case ARP_ENTRY_STATE_WAITING:
+                if (--entry->retry == 0)
+                {
+                    arp_cache_remove_entry(&arp_cache_table, entry);
+                    arp_cache_free_entry(&arp_cache_table, entry);
+                }
+                else
+                {
+                    ipaddr_t dest_ip;
+                    dest_ip.q_addr = entry->ipaddr.q_addr;
+                    entry->tmo = ARP_ENTRY_TMO_RESOLVING;
+                    entry->state = ARP_ENTRY_STATE_WAITING;
+                    // 重新请求mac地址
+                    arp_send_request(entry->netif, &dest_ip);
+                }
+                break;
+            default:
+                dbg_error("unkown entry state\r\n");
+                break;
+            }
+        }
+
+        cur = next;
+    }
+}
+soft_timer_t arp_timer ;
 void arp_init(void)
 {
     arp_cache_table_init(&arp_cache_table);
+    
+    soft_timer_add(&arp_timer, SOFT_TIMER_TYPE_PERIOD, 1000, "arp timer", arp_cache_scan_period, NULL, NULL);
+    
 }

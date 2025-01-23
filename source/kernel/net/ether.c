@@ -2,8 +2,10 @@
 #include "mem/malloc.h"
 #include "protocal.h"
 #include "arp.h"
+#include "ipv4.h"
 static void ether_show_head(ether_header_t *head)
 {
+#ifdef ETHER_DBG
     ETHER_DBG_PRINT("ether_header----\r\n");
     char src_buf[20] = {0};
     char dest_buf[20] = {0};
@@ -18,13 +20,16 @@ static void ether_show_head(ether_header_t *head)
     ETHER_DBG_PRINT("mac dest:%s\r\n", dest_buf);
     ETHER_DBG_PRINT("protoal:0x%04x\r\n", proto);
     ETHER_DBG_PRINT("\r\n");
+#endif
 }
 static void ether_show_pkg(pkg_t *package)
 {
+#ifdef ETHER_DBG
     ETHER_DBG_PRINT("ether in a package:\r\n");
     ether_header_t *ether_head = package_data(package, sizeof(ether_header_t), 0);
     ether_show_head(ether_head);
     package_print(package, sizeof(ether_header_t));
+#endif
 }
 static int ether_pkg_is_ok(netif_t *netif, ether_header_t *header, int pkg_len)
 {
@@ -77,13 +82,17 @@ static int ether_in(netif_t *netif, pkg_t *package)
             dbg_error("package shrank ops fail\r\n");
             return -2;
         }
-        ret = arp_in(netif, package);
+        return arp_in(netif, package);
+        break;
+    case PROTOCAL_TYPE_IPV4:
+        // 去掉以太头
+        ret = package_shrank_front(package, sizeof(ether_header_t));
         if (ret < 0)
         {
-            dbg_warning("arp_in handle a pkg fail\r\n");
-            return -3;
+            dbg_error("package shrank ops fail\r\n");
+            return -2;
         }
-        break;
+        return ipv4_in(netif,package);
 
     default:
         dbg_error("unkown protocal type\r\n");
