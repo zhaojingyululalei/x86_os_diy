@@ -2,6 +2,8 @@
 #include "debug.h"
 #include "net/arp.h"
 #include "net/net_tools/soft_timer.h"
+#include "net/ipv4.h"
+#include "net/protocal.h"
 DEFINE_TIMER_FUNC(timer_0_handle)
 {
     int *x = (int *)arg;
@@ -67,8 +69,10 @@ void arp_test(netif_t *netif)
     ipaddr_s2n("192.168.169.40", &ip);
     arp_send_request(netif, &ip);
 }
+
 void rtl8139_drive_test(void)
 {
+    int ret;
     const char *if_name = "eth0";
     sys_netif_create(if_name, NETIF_TYPE_ETH);
     netif_t *netif = find_netif_by_name(if_name);
@@ -84,10 +88,13 @@ void rtl8139_drive_test(void)
     ipaddr_s2n("192.168.169.40", &ip);
     char data_buf[2] = {0x55, 0xaa};
     pkg_t *pkg = package_create(data_buf, 2);
-    netif_out(netif, &ip, pkg);
-    sys_sleep_ms(1000);
-    arp_show_cache_list();
-    // arp_test(netif);
+    ret = ipv4_out(pkg,PROTOCAL_TYPE_ICMPV4,&ip);
+    if(ret < 0)
+    {
+        package_collect(pkg);
+    }
+    
+    
 }
 #include "net/ipaddr.h"
 void ipaddr_test(void)

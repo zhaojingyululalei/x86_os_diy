@@ -5,6 +5,8 @@
 #include "netif.h"
 #include "arp.h"
 #include "net_tools/soft_timer.h"
+#include "ipv4.h"
+#include "icmpv4.h"
 void net_init(void)
 {
     //数据包分配结构
@@ -16,6 +18,6 @@ void net_init(void)
     netif_init();
     net_worker_init();
     arp_init();
-
-
+    ipv4_init();
+    icmpv4_init();
 }

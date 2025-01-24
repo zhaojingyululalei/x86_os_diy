@@ -244,7 +244,7 @@ int arp_entry_insert_pkg(arp_entry_t *entry, pkg_t *pkg)
     }
 }
 
-int arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int force)
+arp_entry_t* arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int force)
 {
 
     arp_entry_t *new_entry;
@@ -267,11 +267,11 @@ int arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int forc
             new_entry->tmo = ARP_ENTRY_TMO_RESOLVING;
         }
         arp_cache_insert_entry(&arp_cache_table, new_entry);
-        return 0;
+        return new_entry;
     }
     else
     {
-        return -1;
+        return NULL;
     }
 }
 pkg_t *arp_entry_remove_pkg(arp_entry_t *entry, pkg_t *pkg)
@@ -413,6 +413,7 @@ int arp_in(netif_t *netif, pkg_t *package)
             // 添加新页表
             memcpy(hw.addr, arp->src_mac, MACADDR_ARRAY_LEN);
             arp_cache_add_entry(netif, &parse.src_ip, &hw, 0);
+            
         }
         else
         {
@@ -473,7 +474,9 @@ int arp_reslove(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
     else
     {
         // 创建该表项
-        arp_cache_add_entry(netif, dest_ip, NULL, 1);
+        arp_entry_t *new_entry = arp_cache_add_entry(netif, dest_ip, NULL, 1);
+        //把包放进去
+        arp_entry_insert_pkg(new_entry,package);
         // 发送arp请求
         arp_send_request(netif, dest_ip);
     }

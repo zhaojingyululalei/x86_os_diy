@@ -81,7 +81,7 @@ void arp_cache_free_entry(arp_cache_table_t *table,arp_entry_t* entry);
 void arp_cache_clear(arp_cache_table_t *table);
 arp_entry_t* arp_cache_remove_entry(arp_cache_table_t *table,arp_entry_t* entry);
 int arp_cache_insert_entry(arp_cache_table_t *table,arp_entry_t* entry);
-int arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int force);
+arp_entry_t* arp_cache_add_entry(netif_t *netif, ipaddr_t *ip, hwaddr_t *hwaddr, int force);
 arp_entry_t* arp_cache_find(arp_cache_table_t* table,ipaddr_t* ip);
 int arp_entry_insert_pkg(arp_entry_t* entry,pkg_t* pkg);
 pkg_t* arp_entry_remove_pkg(arp_entry_t* entry,pkg_t* pkg);

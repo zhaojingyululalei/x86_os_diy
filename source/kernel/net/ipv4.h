@@ -4,6 +4,8 @@
 #include "types.h"
 #include "net_cfg.h"
 #include "netif.h"
+#include "protocal.h"
+#include "ipaddr.h"
 #define IPV4_HEAD_VERSION   4
 #define IPV4_HEAD_MIN_SIZE  20
 #define IPV4_HEAD_MAX_SIZE  60
@@ -53,11 +55,36 @@ typedef struct _ipv4_head_parse_t
 void parse_ipv4_header(const ipv4_header_t *ip_head, ipv4_head_parse_t *parsed);
 void ipv4_set_header(const ipv4_head_parse_t* parsed, ipv4_header_t* head) ;
 
+netif_t* ip_route(ipaddr_t* dest);
+
 int ipv4_in(netif_t* netif,pkg_t* package);
+int ipv4_out(pkg_t *package, protocal_type_t protocal,  ipaddr_t *dest);
+void ipv4_init(void);
 
 
+/*ip包分片处理*/
+/*ip数据包分片结构*/
+typedef struct _ip_frag_t
+{
+    ipaddr_t ip;
+    uint16_t id;
+    int tmo;      //tmo/period,每次扫描，tmo-1
+    list_t frag_list; //分片数据包
 
+    list_node_t node;
+}ip_frag_t;
+
+void ipv4_frag_list_print(void);
+void ipv4_frag_free(ip_frag_t* frag);
+ip_frag_t* ipv4_frag_alloc(void);
+ip_frag_t *ipv4_frag_find(ipaddr_t *ip, uint16_t id);
+int ipv4_frag_insert_pkg(ip_frag_t* frag,pkg_t* pkg,ipv4_head_parse_t* parse);
+int ipv4_frag_is_all_arrived(ip_frag_t* frag);
+pkg_t* ipv4_frag_join_pkg(ip_frag_t* frag);
+
+/*debug*/
 void ipv4_show_pkg(ipv4_head_parse_t *parse);
+void ipv4_show_head(ipv4_header_t* head);
 #ifdef IPV4_DBG
     #define IPV4_DBG_PRINT(fmt, ...) dbg_info(fmt, ##__VA_ARGS__)
 #else

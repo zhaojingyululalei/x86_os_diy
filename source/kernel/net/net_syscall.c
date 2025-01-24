@@ -2,6 +2,7 @@
 #include "dev/chr/rtl8139.h"
 #include "ipaddr.h"
 #include "ether.h"
+#include "loop.h"
 static int netif_id = 0;
 /*普通用户能干的事情*/
 static rtl8139_priv_t priv;
@@ -30,8 +31,10 @@ int sys_netif_create(const char *if_name, netif_type_t type)
 
             target->link_ops = &ether_ops; //安装链路层驱动
             target->mtu = ETHER_MTU_DEFAULT;
+            netif_rtl8139 = target;
             break;
-
+        case NETIF_TYPE_LOOP:
+            netif_loop = target;
         default:
             dbg_error("Unrecognized network card type\r\n");
             goto create_fail;

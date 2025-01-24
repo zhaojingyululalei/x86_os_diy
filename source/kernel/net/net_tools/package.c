@@ -812,6 +812,7 @@ int package_lseek(pkg_t *package, int offset)
         // un//lock(&pkg_locker);
         return -1;
     }
+   
 
     pkg_dblk_t *blk = package_get_first_datablk(package); // 从链表头开始查找
     package->curblk = blk;

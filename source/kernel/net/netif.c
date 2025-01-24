@@ -2,6 +2,9 @@
 #include "net_tools/net_mmpool.h"
 #include "net_tools/package.h"
 #include "net_tools/msgQ.h"
+
+netif_t* netif_rtl8139;
+
 static mempool_t netif_pool;
 static uint8_t netif_buf[NETIF_MAX_NR * (sizeof(netif_t) + sizeof(list_node_t))];
 static list_t netif_list;
@@ -148,7 +151,6 @@ int netif_put_pkg_into_inq(netif_t *netif, pkg_t *package, int timeout)
 int netif_out(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
 {
     int ret;
-
     if (netif->link_ops)
     {
         return netif->link_ops->out(netif, dest_ip, package);
@@ -158,12 +160,7 @@ int netif_out(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
         if (netif->info.type == NETIF_TYPE_LOOP)
         {
             //如果是回环网口，直接把输出的包放到loop的输入队列中
-            ret = netif_put_pkg_into_inq(netif, package, -1); 
-            if (ret < 0)
-            {
-                // 包都没放进去，pkg可以回收了
-                return -2;
-            }
+            return netif_put_pkg_into_inq(netif, package, -1); 
             
         }
         else
@@ -172,6 +169,7 @@ int netif_out(netif_t *netif, ipaddr_t *dest_ip, pkg_t *package)
             return -3;
         }
     }
+    return 0;
 }
 
 netif_t *find_netif_by_name(const char *if_name)
@@ -280,4 +278,9 @@ int netif_set_mask(netif_t *target_if, const char *ip_str)
         return -2;
     }
     return 0;
+}
+
+netif_t* netif_get_8139(void)
+{
+    return netif_rtl8139;
 }

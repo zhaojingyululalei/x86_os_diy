@@ -4,3 +4,7 @@
  * 发出的包最底层也是ipv4层
  * 而且不涉及arp包，因为没有mac地址
  */
+
+#include "netif.h"
+
+netif_t* netif_loop;

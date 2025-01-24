@@ -22,6 +22,12 @@
 #define ARP_ENTRY_TMO_RESOLVING 3    //该表项跟新时，每隔多久发一次arp请求
 #define ARP_ENTRY_RETRY 5           //发了n次请求，还是没解析出来，就删除该表项
 
+/*ipv4*/
+#define IPV4_FRAG_TIMER_SCAN    1   //周期性扫描分片列表,长时间组不成完整包就丢弃
+#define IPV4_FRAG_TMO           5   //规定时间内，没有组成完整分片，就释放掉
+
+
+
 /*debug */
 #define PKG_DBG
 //#define NET_DRIVE_DBG
@@ -30,4 +36,5 @@
 #define ARP_DBG
 #define DBG_SOFT_TIMER_PRINT
 #define IPV4_DBG
+#define ICMPV4_DBG
 #endif

@@ -91,7 +91,7 @@ typedef struct _netif_t
 
 } netif_t;
 
-
+extern netif_t* netif_rtl8139;
 void netif_init(void);
 void netif_destory(void);
 netif_t* netif_alloc(void);
@@ -115,7 +115,7 @@ void netif_show_list(void);
 int netif_set_ip(netif_t *target_if,const char* ip_str);
 int netif_set_gateway(netif_t *target_if,const char* ip_str);
 int netif_set_mask(netif_t *target_if,const char* ip_str);
-
+netif_t* netif_get_8139(void);
 #include "debug.h"
 
 #ifdef NETIF_DBG

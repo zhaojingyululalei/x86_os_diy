@@ -64,7 +64,8 @@
 			"string.h": "c",
 			"ether.h": "c",
 			"ipv4.h": "c",
-			"soft_timer.h": "c"
+			"soft_timer.h": "c",
+			"icmpv4.h": "c"
 		}
 	}
 }
