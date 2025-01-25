@@ -42,7 +42,6 @@ typedef struct _icmpv4_pkt_t {
             uint16_t Sequence ;
         };
     };
-    uint8_t data;
 }icmpv4_t;
 #pragma pack()
 int icmpv4_send_unreach(ipaddr_t *dest, pkg_t *package, int code);

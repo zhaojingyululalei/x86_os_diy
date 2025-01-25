@@ -36,6 +36,11 @@ static int netif_in(netif_t *netif, pkg_t *package)
 
     return 0;
 }
+static void do_net_func(net_app_task_t* task)
+{
+   task->ret = (void*)task->func(task->arg);
+   semaphore_post(&task->sem);
+}
 /**
  * 处理消息队列里的消息，包括数据包和应用请求
  */
@@ -66,8 +71,8 @@ static void handle(void)
                 package_collect(msg->package);
             }
             break;
-        case NET_MSG_TYPE_REQ_FUNC:
-            dbg_warning("这块功能还未实现\r\n");
+        case NET_MSG_TYPE_NET_FUNC:
+            do_net_func(msg->task);
             break;
         default:
             dbg_error("unkown msg type\r\n");

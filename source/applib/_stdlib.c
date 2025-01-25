@@ -219,3 +219,75 @@ int local_time(tm_t *tm, time_t time)
 
     return sys_call(&args);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 32位无符号整数转换函数（主机到网络）
+uint32_t htonl(uint32_t hostlong)
+{
+    if (IS_LITTLE_ENDIAN)
+    {
+        return ((hostlong >> 24) & 0x000000ff) |
+               ((hostlong >> 8) & 0x0000ff00) |
+               ((hostlong << 8) & 0x00ff0000) |
+               ((hostlong << 24) & 0xff000000);
+    }
+    return hostlong; // 如果系统是大端字节序，则无需转换
+}
+
+// 16位无符号整数转换函数（主机到网络）
+uint16_t htons(uint16_t hostshort)
+{
+    if (IS_LITTLE_ENDIAN)
+    {
+        return ((hostshort >> 8) & 0x00ff) |
+               ((hostshort << 8) & 0xff00);
+    }
+    return hostshort;
+}
+
+// 32位无符号整数转换函数（网络到主机）
+uint32_t ntohl(uint32_t netlong)
+{
+    if (IS_LITTLE_ENDIAN)
+    {
+        return ((netlong >> 24) & 0x000000ff) |
+               ((netlong >> 8) & 0x0000ff00) |
+               ((netlong << 8) & 0x00ff0000) |
+               ((netlong << 24) & 0xff000000);
+    }
+    return netlong;
+}
+
+// 16位无符号整数转换函数（网络到主机）
+uint16_t ntohs(uint16_t netshort)
+{
+    if (IS_LITTLE_ENDIAN)
+    {
+        return ((netshort >> 8) & 0x00ff) |
+               ((netshort << 8) & 0xff00);
+    }
+    return netshort;
+}

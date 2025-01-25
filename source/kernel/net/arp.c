@@ -322,6 +322,8 @@ int arp_parse_pkg(arp_t *arp, arp_parse_t *parse)
 
     ipaddr_n2s(&parse->src_ip, parse->src_ip_str, 20);
     ipaddr_n2s(&parse->dest_ip, parse->dest_ip_str, 20);
+    memcpy(parse->dest_mac.addr,arp->dest_mac,MACADDR_ARRAY_LEN);
+    memcpy(parse->src_mac.addr,arp->src_mac,MACADDR_ARRAY_LEN);
     return 0;
 }
 /**
@@ -398,7 +400,7 @@ int arp_in(netif_t *netif, pkg_t *package)
         // arp请求包都是广播包，如果确实问的是我的ip对应的mac地址，就发送回应包
         if (parse.dest_ip.q_addr == netif->info.ipaddr.q_addr)
         {
-            ret = arp_send_reply(netif, package);
+            ret = arp_send_reply(netif, package); //发送完成释放掉了
             if (ret < 0)
                 return -1;
         }
@@ -411,7 +413,7 @@ int arp_in(netif_t *netif, pkg_t *package)
         if (!entry)
         {
             // 添加新页表
-            memcpy(hw.addr, arp->src_mac, MACADDR_ARRAY_LEN);
+            memcpy(hw.addr, parse.src_mac.addr, MACADDR_ARRAY_LEN);
             arp_cache_add_entry(netif, &parse.src_ip, &hw, 0);
             
         }

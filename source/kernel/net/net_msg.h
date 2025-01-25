@@ -3,12 +3,13 @@
 
 #include "net_tools/package.h"
 #include "netif.h"
+#include "net_submit.h"
 #define NET_MSG_MAX_NR 100
 typedef enum _net_msg_type_t
 {
     NET_MSG_TYPE_NONE,
     NET_MSG_TYPE_PKG,      // 消息类型是数据包
-    NET_MSG_TYPE_REQ_FUNC, // 消息类型是app请求
+    NET_MSG_TYPE_NET_FUNC, // 消息类型是app请求
 } net_msg_type_t;
 
 typedef struct _net_msg_t
@@ -19,6 +20,7 @@ typedef struct _net_msg_t
     union
     {
         pkg_t *package;
+        net_app_task_t* task;
     };
 
 } net_msg_t;

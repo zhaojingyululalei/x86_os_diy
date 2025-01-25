@@ -29,12 +29,12 @@
 
 
 /*debug */
-#define PKG_DBG
-//#define NET_DRIVE_DBG
-#define NETIF_DBG
-#define ETHER_DBG
-#define ARP_DBG
-#define DBG_SOFT_TIMER_PRINT
-#define IPV4_DBG
-#define ICMPV4_DBG
+// #define PKG_DBG
+// #define NET_DRIVE_DBG
+// #define NETIF_DBG
+// #define ETHER_DBG
+// #define ARP_DBG
+// #define DBG_SOFT_TIMER_PRINT
+// #define IPV4_DBG
+// #define ICMPV4_DBG
 #endif

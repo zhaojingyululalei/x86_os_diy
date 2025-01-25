@@ -62,9 +62,11 @@ typedef struct _arp_parse_t
     uint8_t hard_len;
     uint8_t protocal_len;
     uint16_t opcode;
+    hwaddr_t src_mac;
     char src_mac_str[20];
     ipaddr_t src_ip;
     char src_ip_str[20];
+    hwaddr_t dest_mac;
     char dest_mac_str[20];
     ipaddr_t dest_ip;
     char dest_ip_str[20];

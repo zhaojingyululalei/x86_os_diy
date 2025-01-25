@@ -16,7 +16,7 @@ int sys_netif_create(const char *if_name, netif_type_t type)
     target = netif_alloc();
     if (target)
     {
-        target->id = netif_id++;
+        
         target->info.type = type;
         target->state = NETIF_STATE_CLOSE;
         strcpy(target->info.name, if_name);

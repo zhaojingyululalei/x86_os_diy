@@ -7,11 +7,13 @@
 #include "net_tools/soft_timer.h"
 #include "ipv4.h"
 #include "icmpv4.h"
+#include "net_submit.h"
 void net_init(void)
 {
     //数据包分配结构
     package_pool_init();
     soft_timer_init();
+    net_submit_init();
     //核心的消息队列 以及消息分配结构
     net_mq_init();
     net_msg_init();

@@ -3,6 +3,7 @@
 #include "net/arp.h"
 #include "net/net_tools/soft_timer.h"
 #include "net/ipv4.h"
+#include "net/net_submit.h"
 #include "net/protocal.h"
 DEFINE_TIMER_FUNC(timer_0_handle)
 {
@@ -70,6 +71,10 @@ void arp_test(netif_t *netif)
     arp_send_request(netif, &ip);
 }
 
+int net_task_test(uint16_t x)
+{
+    return x+10;
+}
 void rtl8139_drive_test(void)
 {
     int ret;
@@ -84,15 +89,10 @@ void rtl8139_drive_test(void)
 
     sys_netif_show();
 
-    ipaddr_t ip;
-    ipaddr_s2n("192.168.169.40", &ip);
-    char data_buf[2] = {0x55, 0xaa};
-    pkg_t *pkg = package_create(data_buf, 2);
-    ret = ipv4_out(pkg,PROTOCAL_TYPE_ICMPV4,&ip);
-    if(ret < 0)
-    {
-        package_collect(pkg);
-    }
+    int y = 10;
+    ret = net_task_submit(net_task_test,y);
+    dbg_info("ret = %d \r\n",ret);
+    return;
     
     
 }
