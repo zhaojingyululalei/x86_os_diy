@@ -291,3 +291,12 @@ uint16_t ntohs(uint16_t netshort)
     }
     return netshort;
 }
+
+int inet_pton(int family, const char *strptr, void *addrptr)
+{
+    return 0;
+}
+const char * inet_ntop(int family, const void *addrptr, char *strptr, int len)
+{
+    return NULL;
+}

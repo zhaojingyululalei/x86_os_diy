@@ -8,6 +8,8 @@
 #include "ipv4.h"
 #include "icmpv4.h"
 #include "net_submit.h"
+#include "sock.h"
+#include "raw.h"
 void net_init(void)
 {
     //数据包分配结构
@@ -22,4 +24,6 @@ void net_init(void)
     arp_init();
     ipv4_init();
     icmpv4_init();
+    socket_init();
+    raw_init();
 }

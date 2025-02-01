@@ -50,4 +50,6 @@ uint16_t htons(uint16_t hostshort);
 uint32_t ntohl(uint32_t netlong);
 // 16位无符号整数转换函数（网络到主机）
 uint16_t ntohs(uint16_t netshort);
+int inet_pton(int family, const char *strptr, void *addrptr);
+const char * inet_ntop(int family, const void *addrptr, char *strptr, int len);
 #endif

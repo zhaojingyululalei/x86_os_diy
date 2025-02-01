@@ -15,8 +15,6 @@ typedef struct _net_app_task_t
 }net_app_task_t;
 
 void net_submit_init(void);
-net_app_task_t* net_task_alloc(void);
-void net_task_free(net_app_task_t* net_task);
 void* net_task_submit(app_func_t func,void* arg);
 
 

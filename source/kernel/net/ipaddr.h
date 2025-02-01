@@ -7,16 +7,16 @@
  */
 typedef struct _ipaddr_t
 {
-    enum
-    {
-        IPADDR_V4,
-    } type; // 地址类型
 
     union
     {
         uint32_t q_addr;                 // 32位整体描述
         uint8_t a_addr[IPADDR_ARRY_LEN]; // 数组描述
     };
+    enum
+    {
+        IPADDR_V4,
+    } type; // 地址类型
 } ipaddr_t;
 
 typedef struct _hwaddr_t

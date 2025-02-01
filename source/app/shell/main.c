@@ -1,4 +1,10 @@
 #include "main.h"
+
+
+void net_test(void)
+{
+    
+}
 int x = 0;
 int main(int argc, char *argv[])
 {

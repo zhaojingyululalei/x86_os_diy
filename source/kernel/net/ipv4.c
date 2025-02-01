@@ -6,6 +6,7 @@
 #include "icmpv4.h"
 #include "net_tools/net_mmpool.h"
 #include "net_tools/soft_timer.h"
+#include "raw.h"
 static uint16_t ipv4_frag_global_id = 1;
 
 static bool ipv4_is_ok(ipv4_header_t *ip_head, ipv4_head_parse_t *parse)
@@ -63,13 +64,17 @@ static bool ipv4_is_match(netif_t *netif, ipaddr_t *dest_ip)
 /*无需分片的包*/
 static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *parse)
 {
+    int ret;
     ipv4_header_t *head = (ipv4_header_t *)package_data(package, sizeof(ipv4_header_t), 0);
     switch (parse->protocol)
     {
     case PROTOCAL_TYPE_ICMPV4:
+        //保存ipv4头
+        ipv4_header_t ipv4_head;
+        package_read_pos(package,&ipv4_head,sizeof(ipv4_header_t),0);
         // 除去数据包中的ipv4头
         package_shrank_front(package, sizeof(ipv4_header_t));
-        return icmpv4_in(&parse->src_ip, &netif->info.ipaddr, package);
+        return icmpv4_in(netif,&parse->src_ip, &netif->info.ipaddr, package,&ipv4_head);
         break;
     case PROTOCAL_TYPE_UDP:
         return icmpv4_send_unreach(&parse->src_ip, package, ICMPv4_UNREACH_PORT);
@@ -78,8 +83,13 @@ static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *par
         dbg_info("tcp handle:to be continued\r\n");
         break;
     default:
-        dbg_error("unkown ipv4 type\r\n");
-        return -1;
+        ret = raw_in(netif,package);
+        if(ret < 0)
+        {
+            return -1;
+        }
+        break;
+        
     }
     return 0;
 }
@@ -130,6 +140,7 @@ static int ipv4_frag_out(netif_t *netif, pkg_t *pkg, uint8_t protocal, ipaddr_t 
 {
     int ret;
     ipaddr_t *src = &netif->info.ipaddr;
+    int sum_size = 0;
     int remain_size = pkg->total;
     int cur_pos = 0;
     int old_pos = 0;
@@ -202,25 +213,31 @@ static int ipv4_frag_out(netif_t *netif, pkg_t *pkg, uint8_t protocal, ipaddr_t 
         uint16_t check_ret = package_checksum16(frag_pkg, 0, sizeof(ipv4_header_t), 0, 1);
         // 这里直接赋值，不要大小端转换  解析的时候，checksum转不转换都行
         head->h_checksum = check_ret;
+        int frag_size = frag_pkg->total;
         // package_print(frag_pkg);
-        ret = netif_out(netif, dest, frag_pkg);
+        ret = netif_out(netif, dest, frag_pkg); //成功发送ether层回收
         if (ret < 0)
         {
             dbg_warning("the frag_pkg send fail\r\n");
             package_collect(frag_pkg);
             return -3;
         }
+        else
+        {
+            sum_size += (frag_size - sizeof(ipv4_header_t));
+        }
     }
     ipv4_frag_global_id++;
-
-    return 0;
+    package_collect(pkg);//回收大包，小包发送成功或者失败都已经处理好了
+    return sum_size;
 }
 static int ipv4_normal_out(netif_t *netif, pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
 {
     // package_print(package,0);
-
+    int ret;
+    int pkg_total=package->total;
     package_add_headspace(package, sizeof(ipv4_header_t));
-    ipv4_header_t *head = package_data(package, 0, 0);
+    ipv4_header_t *head = package_data(package, sizeof(ipv4_header_t), 0);
 
     ipv4_head_parse_t parse;
     memset(&parse, 0, sizeof(ipv4_head_parse_t));
@@ -240,7 +257,15 @@ static int ipv4_normal_out(netif_t *netif, pkg_t *package, protocal_type_t proto
     uint16_t check_ret = package_checksum16(package, 0, sizeof(ipv4_header_t), 0, 1);
     head->h_checksum = check_ret;
     // package_print(package,0);
-    return netif_out(netif, dest, package);
+    ret = netif_out(netif, dest, package);
+    if(ret < 0)
+    {
+        return ret;
+    }
+    else
+    {
+        return pkg_total;
+    }
 }
 void parse_ipv4_header(const ipv4_header_t *ip_head, ipv4_head_parse_t *parsed)
 {
@@ -333,12 +358,8 @@ int ipv4_in(netif_t *netif, pkg_t *package)
         {
             return -4;
         }
-        else
-        {
-            // 包被正确处理后，释放
-            package_collect(package);
-            return 0;
-        }
+        //成功收到ip包，也不能释放，存到socket的recvlist中了
+        //应用层取走释放
     }
 }
 
@@ -356,6 +377,9 @@ netif_t *ip_route(ipaddr_t *dest)
         return netif_get_8139();
     }
 }
+/**
+ * 返回成功发送的字节数
+ */
 int ipv4_out(pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
 {
 
@@ -386,7 +410,7 @@ int ipv4_out(pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
             return ret;
         }
     }
-    return 0;
+    return ret;
 }
 
 /**ipfrag */

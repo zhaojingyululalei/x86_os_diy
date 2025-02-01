@@ -65,7 +65,13 @@
 			"ether.h": "c",
 			"ipv4.h": "c",
 			"soft_timer.h": "c",
-			"icmpv4.h": "c"
+			"icmpv4.h": "c",
+			"socket.h": "c",
+			"sock.h": "c",
+			"net_submit.h": "c",
+			"socket_param.h": "c",
+			"raw.h": "c",
+			"net_syscall.h": "c"
 		}
 	}
 }

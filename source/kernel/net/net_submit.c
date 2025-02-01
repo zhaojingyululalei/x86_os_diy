@@ -13,12 +13,12 @@ void net_submit_init(void)
     mempool_init(&net_task_pool,net_task_buf,APP_TASK_FUNC_MAX_SIZE,sizeof(net_app_task_t));
 }
 
-net_app_task_t* net_task_alloc(void)
+static net_app_task_t* net_task_alloc(void)
 {
     return mempool_alloc_blk(&net_task_pool,-1);
 }
 
-void net_task_free(net_app_task_t* net_task)
+static void net_task_free(net_app_task_t* net_task)
 {
     memset(net_task,0,sizeof(net_app_task_t));
     mempool_free_blk(&net_task_pool,net_task);

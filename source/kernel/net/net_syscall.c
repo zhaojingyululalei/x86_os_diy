@@ -246,6 +246,38 @@ int sys_netif_set_mask(const char* if_name,const char* ip_str)
 }
 
 
+#include "socket.h"
+#include "ipaddr.h"
+#include "string.h"
+int inet_pton(int family, const char *strptr, void *addrptr)
+{
+    // 仅支持IPv4地址类型
+    if ((family != AF_INET) || !strptr || !addrptr) {
+        return -1;
+    }
+    struct in_addr * addr = (struct in_addr *)addrptr;
+    
+    ipaddr_t dest;
+    ipaddr_s2n(strptr,&dest);
+    
+    addr->s_addr = dest.q_addr;
+    return 1;
+}
+const char * inet_ntop(int family, const void *addrptr, char *strptr, int len)
+{
+    if ((family != AF_INET) || !addrptr || !strptr || !len) {
+        return (const char *)0;
+    }
+
+    struct in_addr * addr = (struct in_addr *)addrptr;
+    char buf[20];
+    sprintf(buf, "%d.%d.%d.%d", addr->addr0, addr->addr1, addr->addr2, addr->addr3);
+    strncpy(strptr, buf, len - 1);
+    strptr[len - 1] = '\0';
+    return strptr;
+}
+
+
 
 
 

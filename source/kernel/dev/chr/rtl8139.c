@@ -230,7 +230,11 @@ static int rtl8139_send(struct _netif_t *netif)
     }
 
     // 取数据包
-    pkg_t *buf = netif_get_pkg_from_outq(netif, 0);
+    pkg_t *buf = netif_get_pkg_from_outq(netif, -1);
+    if(!buf)
+    {
+        return -1;
+    }
     NET_DRIVE_DBG_PRINT("rtl8139 send packeet: %d\r\n", buf->total);
 
     // 禁止响应中断，以便进行一定程序的保护

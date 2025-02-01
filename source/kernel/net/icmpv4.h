@@ -4,6 +4,7 @@
 #include "types.h"
 #include "net_tools/package.h"
 #include "ipaddr.h"
+#include "ipv4.h"
 /**
  * @brief ICMP包类型
  */
@@ -45,7 +46,7 @@ typedef struct _icmpv4_pkt_t {
 }icmpv4_t;
 #pragma pack()
 int icmpv4_send_unreach(ipaddr_t *dest, pkg_t *package, int code);
-int icmpv4_in(ipaddr_t* visitor_ip,ipaddr_t* host_ip,pkg_t* package);
+int icmpv4_in(netif_t *netif,ipaddr_t* visitor_ip,ipaddr_t* host_ip,pkg_t* package,ipv4_header_t* ipv4_head);
 int icmpv4_out(ipaddr_t* dest,pkg_t* package);
 void icmpv4_init(void);
 
