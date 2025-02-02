@@ -84,6 +84,7 @@ int sys_netif_open(const char *if_name)
     }
     return 0;
 }
+#include "ipv4.h"
 /**
  * 激活网卡
  * 网卡中断开始工作
@@ -120,7 +121,9 @@ int sys_netif_active(const char *if_name)
             target_if->ops->close(target_if); //关闭网卡
             return -3;
         }
-
+        //安装路由表
+        ip_route_entry_set("0.0.0.0","192.168.169.40","0.0.0.0",21010,"eth0");
+        ip_route_entry_set("192.168.169.0","0.0.0.0","255.255.255.0",0,"eth0");
 
         target_if->state = NETIF_STATE_ACTIVE;
 

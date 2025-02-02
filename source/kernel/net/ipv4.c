@@ -14,12 +14,7 @@ static uint8_t ip_route_entry_buf[IP_ROUTE_ENTRY_MAX_NR * (sizeof(list_node_t) +
 static mempool_t ip_route_entry_pool;
 static list_t ip_route_table;
 
-static void ip_route_table_init(void)
-{
-    mempool_init(&ip_route_entry_pool, ip_route_entry_buf, IP_ROUTE_ENTRY_MAX_NR, sizeof(ip_route_entry_t));
-    list_init(&ip_route_table);
-}
-static ip_route_entry_t *ip_route_entry_alloc(void)
+ip_route_entry_t *ip_route_entry_alloc(void)
 {
     ip_route_entry_t *entry = mempool_alloc_blk(&ip_route_entry_pool, -1);
     if (!entry)
@@ -27,18 +22,13 @@ static ip_route_entry_t *ip_route_entry_alloc(void)
     memset(entry, 0, sizeof(ip_route_entry_t));
     return entry;
 }
-static void ip_route_entry_free(ip_route_entry_t *entry)
+void ip_route_entry_free(ip_route_entry_t *entry)
 {
     memset(entry, 0, sizeof(ip_route_entry_t));
     mempool_free_blk(&ip_route_entry_pool, entry);
 }
 
-typedef enum
-{
-    IP_ROUTE_FIND_TARGET,
-    IP_ROUTE_FIND_NETIF,
-} ip_route_find_type_t;
-static ip_route_entry_t *ip_route_entry_find(ip_route_find_type_t type, void *data)
+ip_route_entry_t *ip_route_entry_find(ip_route_find_type_t type, void *data)
 {
     switch (type)
     {
@@ -74,7 +64,7 @@ static ip_route_entry_t *ip_route_entry_find(ip_route_find_type_t type, void *da
     }
     return NULL;
 }
-static int ip_route_entry_add(ip_route_entry_t *entry)
+int ip_route_entry_add(ip_route_entry_t *entry)
 {
     // 找到第一个目标比他大的，插它前面
     list_node_t *cur = ip_route_table.first;
@@ -104,26 +94,56 @@ static int ip_route_entry_add(ip_route_entry_t *entry)
     list_insert_last(&ip_route_table, &entry->node);
     return 0;
 }
-static int ip_route_entry_delete(ip_route_entry_t *entry)
+int ip_route_entry_delete(ip_route_entry_t *entry)
 {
     list_remove(&ip_route_table, &entry->node);
 }
 
-netif_t *ip_route(ipaddr_t *dest)
+int ip_route_entry_set(const char *target, const char *gateway, const char *mask, int metric, const char *netif_name)
 {
-    /*以后添加路由*/
-
-    // 看看高位是否是127
-    if (dest->a_addr[IPADDR_ARRY_LEN - 1] == 0x7F)
-    {
-        return netif_loop;
-    }
-    else
-    {
-        return netif_get_8139();
-    }
+    ip_route_entry_t *entry = ip_route_entry_alloc();
+    ipaddr_s2n(target, &entry->target);
+    ipaddr_s2n(gateway, &entry->gateway);
+    ipaddr_s2n(mask, &entry->mask);
+    entry->metric = metric;
+    entry->netif = find_netif_by_name(netif_name);
+    ip_route_entry_add(entry);
+    return 0;
 }
 
+static void ip_route_table_init(void)
+{
+    list_init(&ip_route_table);
+    mempool_init(&ip_route_entry_pool, ip_route_entry_buf, IP_ROUTE_ENTRY_MAX_NR, sizeof(ip_route_entry_t));
+}
+
+ip_route_entry_t *ip_route(ipaddr_t *dest)
+{
+
+    int metric_min = 1000000;
+    ip_route_entry_t *entry_ret = NULL;
+    /*以后添加路由*/
+    // 遍历一遍路由表，网络部分一样就选中，有好几个，比较metric，哪个小选哪个
+    list_node_t *cur = ip_route_table.first;
+    while (cur)
+    {
+        ip_route_entry_t *entry = list_node_parent(cur, ip_route_entry_t, node);
+        uint32_t dest_net = ipaddr_get_net(dest, &entry->mask);
+        uint32_t entry_net = ipaddr_get_net(&entry->target, &entry->mask);
+        if (dest_net == entry_net)
+        {
+            // 属于同一个网段
+            int metric = entry->metric;
+            if (metric < metric_min)
+            {
+                metric_min = metric;
+                entry_ret = entry;
+            }
+        }
+        cur = cur->next;
+    }
+    return entry_ret;
+}
 
 static bool ipv4_is_ok(ipv4_header_t *ip_head, ipv4_head_parse_t *parse)
 {
@@ -330,6 +350,17 @@ static int ipv4_frag_out(netif_t *netif, pkg_t *pkg, uint8_t protocal, ipaddr_t 
         head->h_checksum = check_ret;
         int frag_size = frag_pkg->total;
         // package_print(frag_pkg);
+        ip_route_entry_t *entry = ip_route(dest);
+        if (!entry)
+        {
+            dbg_warning("ip route fail\r\n");
+            package_collect(frag_pkg);
+            return -4;
+        }
+        if (entry->gateway.q_addr != 0)
+        {
+            dest->q_addr = entry->gateway.q_addr;
+        }
         ret = netif_out(netif, dest, frag_pkg); // 成功发送ether层回收
         if (ret < 0)
         {
@@ -372,6 +403,16 @@ static int ipv4_normal_out(netif_t *netif, pkg_t *package, protocal_type_t proto
     uint16_t check_ret = package_checksum16(package, 0, sizeof(ipv4_header_t), 0, 1);
     head->h_checksum = check_ret;
     // package_print(package,0);
+    ip_route_entry_t *entry = ip_route(dest);
+    if (!entry)
+    {
+        dbg_warning("ip route fail\r\n");
+        return -4;
+    }
+    if (entry->gateway.q_addr != 0)
+    {
+        dest->q_addr = entry->gateway.q_addr;
+    }
     ret = netif_out(netif, dest, package);
     if (ret < 0)
     {
@@ -478,17 +519,31 @@ int ipv4_in(netif_t *netif, pkg_t *package)
     }
 }
 
-
 /**
  * 返回成功发送的字节数
  */
 int ipv4_out(pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
 {
 
+    // 看看高位是否是127
     int ret;
     netif_t *netif;
-    // 通过路由找到发出数据包的接口
-    netif = ip_route(dest);
+    // 如果是回环接口
+    if (dest->a_addr[IPADDR_ARRY_LEN - 1] == 0x7F)
+    {
+        netif = netif_loop;
+    }
+    else // 如果不是物理接口
+    {
+        // 通过路由找到发出数据包的接口
+        ip_route_entry_t *entry = ip_route(dest);
+        if(!entry)
+        {
+            dbg_warning("ip route fail\r\n");
+            return -4;
+        }
+        netif = entry->netif;
+    }
     if (netif->mtu <= 0)
     {
         dbg_error("netif unset mtu\r\n");
@@ -731,10 +786,6 @@ pkg_t *ipv4_frag_join_pkg(ip_frag_t *frag)
     return to;
 }
 
-
-
-
-
 /*dbg*/
 void ip_route_entry_show(ip_route_entry_t *entry)
 {
@@ -757,7 +808,7 @@ void ip_route_entry_show(ip_route_entry_t *entry)
 }
 void ip_route_show(void)
 {
-    dbg_info("target  gateway  netmask  metric  netif\r\n");
+    dbg_info("target        gateway         netmask         metric      netif\r\n");
     list_node_t *cur = ip_route_table.first;
     while (cur)
     {

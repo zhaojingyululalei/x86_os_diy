@@ -55,7 +55,7 @@ typedef struct _ipv4_head_parse_t
 void parse_ipv4_header(const ipv4_header_t *ip_head, ipv4_head_parse_t *parsed);
 void ipv4_set_header(const ipv4_head_parse_t* parsed, ipv4_header_t* head) ;
 
-netif_t* ip_route(ipaddr_t* dest);
+
 
 int ipv4_in(netif_t* netif,pkg_t* package);
 int ipv4_out(pkg_t *package, protocal_type_t protocal,  ipaddr_t *dest);
@@ -97,9 +97,19 @@ typedef struct _ip_route_entry_t
     list_node_t node;
 }ip_route_entry_t;
 
+typedef enum
+{
+    IP_ROUTE_FIND_TARGET,
+    IP_ROUTE_FIND_NETIF,
+} ip_route_find_type_t;
 
-
-
+ip_route_entry_t* ip_route(ipaddr_t* dest);
+ip_route_entry_t *ip_route_entry_alloc(void);
+ void ip_route_entry_free(ip_route_entry_t *entry);
+ip_route_entry_t *ip_route_entry_find(ip_route_find_type_t type, void *data);
+int ip_route_entry_add(ip_route_entry_t *entry);
+int ip_route_entry_delete(ip_route_entry_t *entry);
+int ip_route_entry_set(const char* target,const char* gateway,const char* mask,int metric,const char* netif_name);
 /*debug*/
 void ip_route_entry_show(ip_route_entry_t *entry);
 void ip_route_show(void);

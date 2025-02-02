@@ -160,7 +160,7 @@ void ping_run(const char *str_ip, int c, int s)
         //sys_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, sizeof(struct timeval));
 
         struct sockaddr_in addr;
-        inet_pton(AF_INET, "192.168.169.40", &addr.sin_addr);
+        inet_pton(AF_INET, str_ip, &addr.sin_addr);
         len = sys_sendto(sockfd, &icmp_pkg, check_len, 0, &addr, sizeof(struct sockaddr_in));
 
         len = sys_recvfrom(sockfd, recv_buf, 2000, 0, &addr, sizeof(struct sockaddr_in));
@@ -224,7 +224,9 @@ void* hellofunc(void* arg)
 void net_socket_test(void)
 {
     sys_sem_init(&sem_ello,0);
-    ping_run("192.168.169.40", 2, 500);
+    ip_route_show();
+    //ping_run("192.168.169.40", 2, 500);
+    ping_run("8.8.8.8", 2, 500);
     create_kernel_process(&hello_test,hellofunc);
     sys_sem_wait(&sem_ello);
     dbg_info("wake up\r\n");
