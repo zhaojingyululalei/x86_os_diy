@@ -56,15 +56,21 @@ void sem_time_check(void)
     list_node_t *cur = sem_timewait_list.first;
     while (cur)
     {
+        
         list_node_t *next = cur->next;
         sem_t *sem = list_node_parent(cur, sem_t, node);
+        if(!sem->tmo)
+        {
+            continue;
+        }
         sem_sec = sys_mktime(sem->tmo);
         //检测sem中的时间是否超时
         if (sec >= sem_sec)
         {
             //已经过了时间就唤醒
-            sys_sem_notify(sem);
             list_remove(&sem_timewait_list, cur);
+            sem->state = SEM_IN_LIST_NONE;
+            sys_sem_notify(sem);
         }
         cur = next;
     }
@@ -88,7 +94,12 @@ int sys_sem_timedwait(sem_t *sem, tm_t *tmo)
     }
     else
     {
-        list_insert_last(&sem_timewait_list, &sem->node);
+        if(sem->state==SEM_IN_LIST_NONE)
+        {
+            list_insert_last(&sem_timewait_list, &sem->node);
+            sem->state = SEM_IN_TMO_WAIT_LIST;
+        }
+        
         // 从就绪队列中移除，然后加入信号量的等待队列
         task_t *curr = get_cur_task();
         curr->state = TASK_WAITING;

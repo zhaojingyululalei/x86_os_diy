@@ -956,6 +956,12 @@ int package_copy(pkg_t *dest_pkg, pkg_t *src_pkg)
 {
     return package_memcpy(dest_pkg, 0, src_pkg, 0, src_pkg->total);
 }
+int package_clone(pkg_t* package)
+{
+    pkg_t* new_pkg = package_alloc(package->total);
+    package_copy(new_pkg,package);
+    return new_pkg;
+}
 void package_print(pkg_t *pkg,int position)
 {
     int count = 0;

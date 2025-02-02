@@ -5,6 +5,10 @@
 #include "list.h"
 #include "_time.h"
 typedef struct _sem_t {
+    enum{
+        SEM_IN_LIST_NONE,
+        SEM_IN_TMO_WAIT_LIST,
+    }state;
     int count;				// 信号量计数
     list_t wait_list;		// 等待的进程列表
 

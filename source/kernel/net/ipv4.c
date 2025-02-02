@@ -9,6 +9,122 @@
 #include "raw.h"
 static uint16_t ipv4_frag_global_id = 1;
 
+/*ip route table*/
+static uint8_t ip_route_entry_buf[IP_ROUTE_ENTRY_MAX_NR * (sizeof(list_node_t) + sizeof(ip_route_entry_t))];
+static mempool_t ip_route_entry_pool;
+static list_t ip_route_table;
+
+static void ip_route_table_init(void)
+{
+    mempool_init(&ip_route_entry_pool, ip_route_entry_buf, IP_ROUTE_ENTRY_MAX_NR, sizeof(ip_route_entry_t));
+    list_init(&ip_route_table);
+}
+static ip_route_entry_t *ip_route_entry_alloc(void)
+{
+    ip_route_entry_t *entry = mempool_alloc_blk(&ip_route_entry_pool, -1);
+    if (!entry)
+        return NULL;
+    memset(entry, 0, sizeof(ip_route_entry_t));
+    return entry;
+}
+static void ip_route_entry_free(ip_route_entry_t *entry)
+{
+    memset(entry, 0, sizeof(ip_route_entry_t));
+    mempool_free_blk(&ip_route_entry_pool, entry);
+}
+
+typedef enum
+{
+    IP_ROUTE_FIND_TARGET,
+    IP_ROUTE_FIND_NETIF,
+} ip_route_find_type_t;
+static ip_route_entry_t *ip_route_entry_find(ip_route_find_type_t type, void *data)
+{
+    switch (type)
+    {
+    case IP_ROUTE_FIND_TARGET:
+        ipaddr_t *target = (ipaddr_t *)data;
+        list_node_t *cur = ip_route_table.first;
+        while (cur)
+        {
+            ip_route_entry_t *entry = list_node_parent(cur, ip_route_entry_t, node);
+            if (entry->target.q_addr == target->q_addr)
+            {
+                return entry;
+            }
+            cur = cur->next;
+        }
+        break;
+    case IP_ROUTE_FIND_NETIF:
+        netif_t *netif = (netif_t *)data;
+        list_node_t *xcur = ip_route_table.first;
+        while (cur)
+        {
+            ip_route_entry_t *entry = list_node_parent(xcur, ip_route_entry_t, node);
+            if (entry->netif == netif)
+            {
+                return entry;
+            }
+            xcur = xcur->next;
+        }
+        break;
+
+    default:
+        break;
+    }
+    return NULL;
+}
+static int ip_route_entry_add(ip_route_entry_t *entry)
+{
+    // 找到第一个目标比他大的，插它前面
+    list_node_t *cur = ip_route_table.first;
+    while (cur)
+    {
+        ip_route_entry_t *find = list_node_parent(cur, ip_route_entry_t, node);
+        if (find->target.q_addr > entry->target.q_addr)
+        {
+            list_insert_front(&ip_route_table, &find->node, &entry->node);
+            break;
+        }
+        else if (find->target.q_addr == entry->target.q_addr)
+        {
+            if (find->metric > entry->metric)
+            {
+                list_insert_front(&ip_route_table, &find->node, &entry->node);
+            }
+            else
+            {
+                list_insert_behind(&ip_route_table, &find->node, &entry->node);
+            }
+            break;
+        }
+        cur = cur->next;
+    }
+    // 啥都没找到插最后面
+    list_insert_last(&ip_route_table, &entry->node);
+    return 0;
+}
+static int ip_route_entry_delete(ip_route_entry_t *entry)
+{
+    list_remove(&ip_route_table, &entry->node);
+}
+
+netif_t *ip_route(ipaddr_t *dest)
+{
+    /*以后添加路由*/
+
+    // 看看高位是否是127
+    if (dest->a_addr[IPADDR_ARRY_LEN - 1] == 0x7F)
+    {
+        return netif_loop;
+    }
+    else
+    {
+        return netif_get_8139();
+    }
+}
+
+
 static bool ipv4_is_ok(ipv4_header_t *ip_head, ipv4_head_parse_t *parse)
 {
     if (parse->version != IPV4_HEAD_VERSION)
@@ -69,12 +185,12 @@ static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *par
     switch (parse->protocol)
     {
     case PROTOCAL_TYPE_ICMPV4:
-        //保存ipv4头
+        // 保存ipv4头
         ipv4_header_t ipv4_head;
-        package_read_pos(package,&ipv4_head,sizeof(ipv4_header_t),0);
+        package_read_pos(package, &ipv4_head, sizeof(ipv4_header_t), 0);
         // 除去数据包中的ipv4头
         package_shrank_front(package, sizeof(ipv4_header_t));
-        return icmpv4_in(netif,&parse->src_ip, &netif->info.ipaddr, package,&ipv4_head);
+        return icmpv4_in(netif, &parse->src_ip, &netif->info.ipaddr, package, &ipv4_head);
         break;
     case PROTOCAL_TYPE_UDP:
         return icmpv4_send_unreach(&parse->src_ip, package, ICMPv4_UNREACH_PORT);
@@ -83,13 +199,12 @@ static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *par
         dbg_info("tcp handle:to be continued\r\n");
         break;
     default:
-        ret = raw_in(netif,package);
-        if(ret < 0)
+        ret = raw_in(netif, package);
+        if (ret < 0)
         {
             return -1;
         }
         break;
-        
     }
     return 0;
 }
@@ -215,7 +330,7 @@ static int ipv4_frag_out(netif_t *netif, pkg_t *pkg, uint8_t protocal, ipaddr_t 
         head->h_checksum = check_ret;
         int frag_size = frag_pkg->total;
         // package_print(frag_pkg);
-        ret = netif_out(netif, dest, frag_pkg); //成功发送ether层回收
+        ret = netif_out(netif, dest, frag_pkg); // 成功发送ether层回收
         if (ret < 0)
         {
             dbg_warning("the frag_pkg send fail\r\n");
@@ -228,14 +343,14 @@ static int ipv4_frag_out(netif_t *netif, pkg_t *pkg, uint8_t protocal, ipaddr_t 
         }
     }
     ipv4_frag_global_id++;
-    package_collect(pkg);//回收大包，小包发送成功或者失败都已经处理好了
+    package_collect(pkg); // 回收大包，小包发送成功或者失败都已经处理好了
     return sum_size;
 }
 static int ipv4_normal_out(netif_t *netif, pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
 {
     // package_print(package,0);
     int ret;
-    int pkg_total=package->total;
+    int pkg_total = package->total;
     package_add_headspace(package, sizeof(ipv4_header_t));
     ipv4_header_t *head = package_data(package, sizeof(ipv4_header_t), 0);
 
@@ -258,7 +373,7 @@ static int ipv4_normal_out(netif_t *netif, pkg_t *package, protocal_type_t proto
     head->h_checksum = check_ret;
     // package_print(package,0);
     ret = netif_out(netif, dest, package);
-    if(ret < 0)
+    if (ret < 0)
     {
         return ret;
     }
@@ -358,25 +473,12 @@ int ipv4_in(netif_t *netif, pkg_t *package)
         {
             return -4;
         }
-        //成功收到ip包，也不能释放，存到socket的recvlist中了
-        //应用层取走释放
+        // 成功收到ip包，也不能释放，存到socket的recvlist中了
+        // 应用层取走释放
     }
 }
 
-netif_t *ip_route(ipaddr_t *dest)
-{
-    /*以后添加路由*/
 
-    // 看看高位是否是127
-    if (dest->a_addr[IPADDR_ARRY_LEN - 1] == 0x7F)
-    {
-        return netif_loop;
-    }
-    else
-    {
-        return netif_get_8139();
-    }
-}
 /**
  * 返回成功发送的字节数
  */
@@ -629,7 +731,41 @@ pkg_t *ipv4_frag_join_pkg(ip_frag_t *frag)
     return to;
 }
 
+
+
+
+
 /*dbg*/
+void ip_route_entry_show(ip_route_entry_t *entry)
+{
+    char ip_buf[20] = {0};
+    ipaddr_n2s(&entry->target, ip_buf, 20);
+    dbg_info("%s  ", ip_buf);
+    memset(ip_buf, 0, 20);
+
+    ipaddr_n2s(&entry->gateway, ip_buf, 20);
+    dbg_info("%s  ", ip_buf);
+    memset(ip_buf, 0, 20);
+
+    ipaddr_n2s(&entry->mask, ip_buf, 20);
+    dbg_info("%s  ", ip_buf);
+    memset(ip_buf, 0, 20);
+
+    dbg_info("%d  ", entry->metric);
+    dbg_info("%s  ", entry->netif->info.name);
+    dbg_info("\r\n");
+}
+void ip_route_show(void)
+{
+    dbg_info("target  gateway  netmask  metric  netif\r\n");
+    list_node_t *cur = ip_route_table.first;
+    while (cur)
+    {
+        ip_route_entry_t *entry = list_node_parent(cur, ip_route_entry_t, node);
+        ip_route_entry_show(entry);
+        cur = cur->next;
+    }
+}
 void ipv4_frag_print(ip_frag_t *frag)
 {
 #ifdef IPV4_DBG
@@ -713,5 +849,6 @@ void ipv4_show_pkg(ipv4_head_parse_t *parse)
 void ipv4_init(void)
 {
     ipv4_frag_init();
+    ip_route_table_init();
     return;
 }

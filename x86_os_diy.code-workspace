@@ -71,7 +71,8 @@
 			"net_submit.h": "c",
 			"socket_param.h": "c",
 			"raw.h": "c",
-			"net_syscall.h": "c"
+			"net_syscall.h": "c",
+			"type_traits": "c"
 		}
 	}
 }

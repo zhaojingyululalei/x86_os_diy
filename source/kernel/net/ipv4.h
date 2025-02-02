@@ -82,7 +82,27 @@ int ipv4_frag_insert_pkg(ip_frag_t* frag,pkg_t* pkg,ipv4_head_parse_t* parse);
 int ipv4_frag_is_all_arrived(ip_frag_t* frag);
 pkg_t* ipv4_frag_join_pkg(ip_frag_t* frag);
 
+
+/**路由表 */
+#define IP_ROUTE_ENTRY_MAX_NR   20
+typedef struct _ip_route_entry_t
+{
+    ipaddr_t target;
+    ipaddr_t gateway;
+    ipaddr_t mask;
+    int metric; //跃点
+    uint8_t flag; //标志
+    netif_t* netif; //接口
+
+    list_node_t node;
+}ip_route_entry_t;
+
+
+
+
 /*debug*/
+void ip_route_entry_show(ip_route_entry_t *entry);
+void ip_route_show(void);
 void ipv4_show_pkg(ipv4_head_parse_t *parse);
 void ipv4_show_head(ipv4_header_t* head);
 #ifdef IPV4_DBG

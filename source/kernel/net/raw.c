@@ -29,6 +29,7 @@ static int raw_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
         return ret;
     }
 }
+/**找到第一个符合的raw */
 static raw_t *raw_find(ipaddr_t *src, int protocal)
 {
     list_node_t *cur = raw_list.first;
@@ -49,12 +50,8 @@ static int raw_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
     int ret;
     ipaddr_t src_ip;
     src_ip.q_addr = ((struct sockaddr_in *)src)->sin_addr.s_addr;
-    raw_t *raw = raw_find(&src_ip, s->protocal);
-    if (!raw)
-    {
-        dbg_error("can not find raw_socket which protocal is %d\r\n", s->protocal);
-        return -1;
-    }
+    raw_t *raw = (raw_t*)s;
+    
     list_node_t *pkg_node = list_remove_first(&raw->recv_list);
     pkg_t *package = list_node_parent(pkg_node, pkg_t, node);
     int cpy_len = len > package->total ? package->total : len;
@@ -102,15 +99,14 @@ static int raw_close(sock_t *sock)
     {
         list_node_t *next = cur_node->next;
         list_remove(&raw->recv_list, cur_node);
-        pkg_t* cur_pkg = list_node_parent(cur_node,pkg_t,node);
+        pkg_t *cur_pkg = list_node_parent(cur_node, pkg_t, node);
         package_collect(cur_pkg);
         cur_node = next;
     }
-    list_remove(&raw_list,&raw->node);
-    memset(raw,0,sizeof(raw_t));
-    mempool_free_blk(&raw_pool,raw);
+    list_remove(&raw_list, &raw->node);
+    memset(raw, 0, sizeof(raw_t));
+    mempool_free_blk(&raw_pool, raw);
     return 0;
-
 }
 static const sock_ops_t raw_ops = {
     .sendto = raw_sendto,
@@ -136,23 +132,40 @@ sock_t *raw_create(int family, int protocol)
 
 int raw_in(netif_t *netif, pkg_t *package)
 {
+    //dbg_info("raw in ...\r\n");
+    bool flag = false;
     ipv4_header_t *ipv4_head = package_data(package, sizeof(ipv4_header_t), 0);
     // 解析ipv4头，看看把数据包加到哪
     ipv4_head_parse_t parse;
     parse_ipv4_header(ipv4_head, &parse);
-    raw_t *raw = raw_find(&parse.src_ip, parse.protocol);
-    if (!raw)
+    // 这里可能有好几个raw，有些socket用着同样的协议和目的ip
+    list_node_t *cur = raw_list.first;
+    while (cur)
+    {
+        raw_t *cur_raw = list_node_parent(cur, raw_t, node);
+        if (cur_raw->base.target_ip.q_addr == parse.src_ip.q_addr && cur_raw->base.protocal == parse.protocol)
+        {
+            flag = true;
+            //每找到一个符合条件的raw
+            if (cur_raw->netif != netif)
+            {
+                cur_raw->netif = netif;
+                cur_raw->base.host_ip.q_addr = netif->info.ipaddr.q_addr;
+            }
+            pkg_t* clone_pkg = package_clone(package);
+            list_insert_last(&cur_raw->recv_list, &clone_pkg->node);
+            sock_wait_notify(&cur_raw->base.recv_wait);
+            
+        }
+        cur = cur->next;
+    }
+    if(!flag)
     {
         return -1;
     }
-    if (raw->netif != netif)
-    {
-        raw->netif = netif;
-        raw->base.host_ip.q_addr = netif->info.ipaddr.q_addr;
-    }
-
-    list_insert_last(&raw->recv_list, &package->node);
-    sock_wait_notify(&raw->base.recv_wait);
+    package_collect(package);
+    return 0;
+    
 }
 
 void raw_init(void)

@@ -157,14 +157,14 @@ void ping_run(const char *str_ip, int c, int s)
         struct timeval time;
         time.tv_sec = 3;
         time.tv_usec = 0;
-        sys_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, sizeof(struct timeval));
+        //sys_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, sizeof(struct timeval));
 
         struct sockaddr_in addr;
         inet_pton(AF_INET, "192.168.169.40", &addr.sin_addr);
         len = sys_sendto(sockfd, &icmp_pkg, check_len, 0, &addr, sizeof(struct sockaddr_in));
 
         len = sys_recvfrom(sockfd, recv_buf, 2000, 0, &addr, sizeof(struct sockaddr_in));
-        if (len < 0)
+        if (len <= 0)
         {
             continue;
         }
@@ -196,7 +196,7 @@ void ping_run(const char *str_ip, int c, int s)
         time_t new_time = sys_mktime(&clock_time);
         int diff_ms = new_time - old_time;
 
-        dbg_info("%dbytes recv from %s:seq=%d,ttl=%d,time=%dms", len, str_ip, i + 1, ttl, diff_ms);
+        dbg_info("%dbytes recv from %s:seq=%d,ttl=%d,time=%dms\r\n", len, str_ip, i + 1, ttl, diff_ms);
         sys_sleep_ms(500);
     }
 
@@ -206,10 +206,31 @@ void ping_run(const char *str_ip, int c, int s)
         dbg_info("ping time out\r\n");
     }
 }
+sem_t sem_ello;
+task_t hello_test;
+void* hellofunc(void* arg)
+{
+    sys_sleep_ms(2000);
+    sys_sem_notify(&sem_ello);
+    while (1)
+    {
+        dbg_info("hello\r\n");
+        sys_sleep_ms(2000);
+        sys_sem_notify(&sem_ello);
+    }
+    
+    
+}
 void net_socket_test(void)
 {
+    sys_sem_init(&sem_ello,0);
     ping_run("192.168.169.40", 2, 500);
-
+    create_kernel_process(&hello_test,hellofunc);
+    sys_sem_wait(&sem_ello);
+    dbg_info("wake up\r\n");
+    sys_sem_wait(&sem_ello);
+    dbg_info("wake up agin\r\n");
+    //ping_run("192.168.169.40", 1, 500);
     return;
 }
 void rtl8139_drive_test(void)
