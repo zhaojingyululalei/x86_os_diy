@@ -85,8 +85,9 @@ static inline int package_get_cur_pos(pkg_t* package)
 {
     return package->pos;
 }
+#include "ipaddr.h"
 uint16_t package_checksum16(pkg_t* pkg, int off,int size, uint32_t pre_sum, int complement) ;
-
+uint16_t package_checksum_peso(pkg_t* buf,ipaddr_t* src,ipaddr_t* dest, uint8_t protocol);
 #include "net_cfg.h"
 #ifdef PKG_DBG
     #define PKG_DBG_PRINT(fmt, ...) dbg_info(fmt, ##__VA_ARGS__)

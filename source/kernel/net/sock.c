@@ -4,6 +4,7 @@
 #include "socket_param.h"
 #include "socket.h"
 #include "raw.h"
+#include "udp.h"
 /*工作线程所要执行的函数*/
 static socket_t socket_tbl[SOCKET_MAX_NR] = {0};
 
@@ -51,6 +52,7 @@ void sock_init(sock_t *sock, int family, int protocal, const sock_ops_t *ops)
     sock->ops = ops;
     sock_wait_init(&sock->send_wait);
     sock_wait_init(&sock->recv_wait);
+    sock_wait_init(&sock->conn_wait);
     
 }
 static const struct
@@ -58,6 +60,7 @@ static const struct
     sock_t *(*create)(int family, int protocol);
 } ops_create_tbl[] = {
     [SOCK_RAW] = {.create = raw_create},
+    [SOCK_DGRAM] = {.create = udp_create},
 };
 
 int sock_create(void *arg)
@@ -115,8 +118,9 @@ int sock_recvfrom(void *arg)
 {
     sock_recvfrom_param_t *param = (sock_recvfrom_param_t *)arg;
 
-    if (!param->addr || param->addr_len != sizeof(struct sockaddr) || param->sockfd < 0)
+    if ( param->sockfd < 0)
     {
+        dbg_error("sockfd wrong\r\n");
         return -1;
     }
     socket_t *socket = socket_from_index(param->sockfd);
@@ -199,19 +203,23 @@ void sock_wait_init(sock_wait_t* wait)
 }
 int sock_wait_set(sock_t* sock,int tmo,int flag)
 {
-    sock->wait_flag = flag;
-    if(flag & SOCK_SEND_WAIT)
+    sock->wait_flag |= flag;
+    switch (flag)
     {
+    case SOCK_RECV_WAIT:
+         sock->recv_wait.tmo = tmo;
+        break;
+    case SOCK_SEND_WAIT:
         sock->send_wait.tmo = tmo;
-    }
-    else if(flag & SOCK_RECV_WAIT)
-    {
-        sock->recv_wait.tmo = tmo;
-    }
-    else if(flag & SOCK_CONN_WAIT)
-    {
+        break;
+    case SOCK_CONN_WAIT:
         sock->conn_wait.tmo = tmo;
+        break;
+    default:
+        dbg_error("unkown sock wait type\r\n");
+        return  -1;
     }
+    
     return 0;
 }
 int sock_wait_enter(sock_wait_t* wait)

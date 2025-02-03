@@ -1081,3 +1081,30 @@ uint16_t package_checksum16(pkg_t *pkg, int off, int size, uint32_t pre_sum, int
 
     return complement ? (uint16_t)~sum : (uint16_t)sum;
 }
+#include "ipaddr.h"
+/*计算伪首部校验和*/
+uint16_t package_checksum_peso(pkg_t* buf,ipaddr_t* src,ipaddr_t* dest, uint8_t protocol)
+{   
+
+    //用网络序的ip进行校验和计算
+    uint32_t src_ip_arr = htonl(src->q_addr);
+    uint32_t dest_ip_arr = htonl(dest->q_addr);
+    uint8_t* src_ip = &src_ip_arr;
+    uint8_t* dest_ip = &dest_ip_arr;
+
+    uint8_t zero_protocol[2] = { 0, protocol };
+    uint16_t len = htons(buf->total);
+
+    int offset = 0;
+    uint32_t sum = checksum16(offset, (uint16_t*)src_ip, IPADDR_ARRY_LEN, 0, 0);
+    offset += IPADDR_ARRY_LEN;
+    sum = checksum16(offset, (uint16_t*)dest_ip, IPADDR_ARRY_LEN, sum, 0);
+    offset += IPADDR_ARRY_LEN;
+    sum = checksum16(offset, (uint16_t*)zero_protocol, 2, sum, 0);
+    offset += 2;
+    sum = checksum16(offset, (uint16_t*)&len, 2, sum, 0);
+
+    
+    sum = package_checksum16(buf, 0,buf->total, sum, 1);
+    return sum;
+}

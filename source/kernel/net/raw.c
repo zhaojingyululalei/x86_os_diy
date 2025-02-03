@@ -18,7 +18,18 @@ static int raw_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
         dbg_error("sockaddr set wrong :in filed sin_family\r\n");
         return -1;
     }
-    s->target_ip.q_addr = addr->sin_addr.s_addr;
+    if (s->target_ip.q_addr == 0)
+    {
+        s->target_ip.q_addr = addr->sin_addr.s_addr;
+    }
+    else
+    {
+        if(s->target_ip.q_addr != addr->sin_addr.s_addr)
+        {
+            dbg_error("raw socket and dest ip not match\r\n");
+            return -4;
+        }
+    }
     ret = ipv4_out(package, s->protocal, &addr->sin_addr);
     if (ret < 0)
     {
@@ -48,10 +59,14 @@ static int raw_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
                         struct sockaddr *src, socklen_t *addr_len)
 {
     int ret;
-    ipaddr_t src_ip;
-    src_ip.q_addr = ((struct sockaddr_in *)src)->sin_addr.s_addr;
-    raw_t *raw = (raw_t*)s;
-    
+
+    raw_t *raw = (raw_t *)s;
+    struct sockaddr_in src_addr;
+    src_addr.sin_addr.s_addr = s->target_ip.q_addr;
+    src_addr.sin_family = s->family;
+    memcpy(src, &src_addr, sizeof(struct sockaddr_in));
+    *addr_len = sizeof(struct sockaddr_in);
+
     list_node_t *pkg_node = list_remove_first(&raw->recv_list);
     pkg_t *package = list_node_parent(pkg_node, pkg_t, node);
     int cpy_len = len > package->total ? package->total : len;
@@ -70,22 +85,22 @@ static int raw_setsockopt(struct _sock_t *s, int level, int optname, const char 
     switch (level)
     {
     case SOL_SOCKET:
-        switch (optname)
+
+        if(optname & SO_RCVTIMEO)
         {
-        case SO_RCVTIMEO:
             struct timeval *time = (struct timeval *)optval;
             int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
-            s->recv_wait.tmo = tmo;
-            break;
-
-        default:
-            dbg_error("unkown optname type\r\n");
-            return -2;
+            sock_wait_set(s,tmo,SOCK_RECV_WAIT);
         }
-        break;
-
+        if(optname & SO_SNDTIMEO)
+        {
+            struct timeval *time = (struct timeval *)optval;
+            int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
+            sock_wait_set(s,tmo,SOCK_SEND_WAIT);
+        }
+        
     default:
-        dbg_error("unkown level type\r\n");
+        dbg_error("unkown setsockopt optname\r\n");
         return -1;
     }
     return 0;
@@ -132,7 +147,7 @@ sock_t *raw_create(int family, int protocol)
 
 int raw_in(netif_t *netif, pkg_t *package)
 {
-    //dbg_info("raw in ...\r\n");
+    // dbg_info("raw in ...\r\n");
     bool flag = false;
     ipv4_header_t *ipv4_head = package_data(package, sizeof(ipv4_header_t), 0);
     // 解析ipv4头，看看把数据包加到哪
@@ -146,26 +161,24 @@ int raw_in(netif_t *netif, pkg_t *package)
         if (cur_raw->base.target_ip.q_addr == parse.src_ip.q_addr && cur_raw->base.protocal == parse.protocol)
         {
             flag = true;
-            //每找到一个符合条件的raw
+            // 每找到一个符合条件的raw
             if (cur_raw->netif != netif)
             {
                 cur_raw->netif = netif;
                 cur_raw->base.host_ip.q_addr = netif->info.ipaddr.q_addr;
             }
-            pkg_t* clone_pkg = package_clone(package);
+            pkg_t *clone_pkg = package_clone(package);
             list_insert_last(&cur_raw->recv_list, &clone_pkg->node);
             sock_wait_notify(&cur_raw->base.recv_wait);
-            
         }
         cur = cur->next;
     }
-    if(!flag)
+    if (!flag)
     {
         return -1;
     }
     package_collect(package);
     return 0;
-    
 }
 
 void raw_init(void)

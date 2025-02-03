@@ -27,6 +27,12 @@
 #define IPV4_FRAG_TMO           5   //规定时间内，没有组成完整分片，就释放掉
 
 
+/*port*/
+#define PORT_MAX_NR 2001
+#define PORT_DYNAMIC_ALLOC_LOWER_BOUND  1000
+#define PORT_DYNAMIC_ALLOC_UP_BOUND 2000
+
+
 
 /*debug */
 //#define PKG_DBG

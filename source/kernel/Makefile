@@ -2,7 +2,7 @@ include ../../Makefile.common
 
 # 手动配置项
 PROJECT := kernel
-INCLUDE := ../os_config  ../lib ./dev ../tools ./ ../applib
+INCLUDE := ../os_config  ../lib ./dev ../tools ./ ../applib ./net
 SRCDIR := ../tools ../lib
 LIBDIR := 
 

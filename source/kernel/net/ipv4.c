@@ -7,6 +7,7 @@
 #include "net_tools/net_mmpool.h"
 #include "net_tools/soft_timer.h"
 #include "raw.h"
+#include "udp.h"
 static uint16_t ipv4_frag_global_id = 1;
 
 /*ip route table*/
@@ -202,18 +203,31 @@ static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *par
 {
     int ret;
     ipv4_header_t *head = (ipv4_header_t *)package_data(package, sizeof(ipv4_header_t), 0);
+    // 保存ipv4头
+    ipv4_header_t ipv4_head;
+    package_read_pos(package, &ipv4_head, sizeof(ipv4_header_t), 0);
+    // 除去数据包中的ipv4头
+    package_shrank_front(package, sizeof(ipv4_header_t));
     switch (parse->protocol)
     {
     case PROTOCAL_TYPE_ICMPV4:
-        // 保存ipv4头
-        ipv4_header_t ipv4_head;
-        package_read_pos(package, &ipv4_head, sizeof(ipv4_header_t), 0);
-        // 除去数据包中的ipv4头
-        package_shrank_front(package, sizeof(ipv4_header_t));
+
         return icmpv4_in(netif, &parse->src_ip, &netif->info.ipaddr, package, &ipv4_head);
         break;
     case PROTOCAL_TYPE_UDP:
-        return icmpv4_send_unreach(&parse->src_ip, package, ICMPv4_UNREACH_PORT);
+        ret = udp_in(package, &parse->src_ip, &parse->dest_ip);
+        if (ret < 0)
+        {
+            if (ret == -3)
+            {
+                icmpv4_send_unreach(&parse->src_ip, package, ICMPv4_UNREACH_PORT);
+            }
+            else
+            {
+                return ret;
+            }
+        }
+
         break;
     case PROTOCAL_TYPE_TCP:
         dbg_info("tcp handle:to be continued\r\n");
@@ -537,7 +551,7 @@ int ipv4_out(pkg_t *package, protocal_type_t protocal, ipaddr_t *dest)
     {
         // 通过路由找到发出数据包的接口
         ip_route_entry_t *entry = ip_route(dest);
-        if(!entry)
+        if (!entry)
         {
             dbg_warning("ip route fail\r\n");
             return -4;

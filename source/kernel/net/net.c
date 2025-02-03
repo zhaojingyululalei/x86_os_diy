@@ -10,6 +10,7 @@
 #include "net_submit.h"
 #include "sock.h"
 #include "raw.h"
+#include  "udp.h"
 void net_init(void)
 {
     //数据包分配结构
@@ -26,4 +27,5 @@ void net_init(void)
     icmpv4_init();
     socket_init();
     raw_init();
+    udp_init();
 }

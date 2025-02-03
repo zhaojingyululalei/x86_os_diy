@@ -76,163 +76,60 @@ int net_task_test(uint16_t x)
 {
     return x + 10;
 }
-
-#include "net/net_syscall.h"
-#include "net/icmpv4.h"
-/**目前有个字段没加，时间戳字段没有加
- * 能保证正确收发
- */
-pkg_t *create_icmp_req_pkg(char *data_buf, int data_len)
+#define RECV_BUF_MAX_SIZE   1000
+int udp_client_test(void)
 {
-    pkg_t *package = package_create(data_buf, data_len);
-    package_add_headspace(package, sizeof(icmpv4_t));
-    icmpv4_t *icmp = package_data(package, sizeof(icmpv4_t), 0);
-    icmp->head.code = 0;
-    icmp->head.type = 8;
-    icmp->head.checksum = 0;
-    icmp->Identifier = 1;
-    icmp->Sequence = 1;
+    /*config*/
+    const char* dest_ip = "192.168.169.40";
+    port_t dest_port = 5500;
+    const char* message = "hello world\r\n";
 
-    icmp->head.checksum = package_checksum16(package, 0, package->total, 0, 1);
-    return package;
-}
-void ping_test(void)
-{
-    int len;
-
-    uint8_t data_buf[1000] = {0};
-    uint8_t buf[2000] = {0};
-    uint8_t recv_buf[2000] = {0};
-
-    memset(data_buf, 0xAA, 1000);
-    int sockfd = sys_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    /*code*/
+    char recv_buf[RECV_BUF_MAX_SIZE] = {0};
+    int sockfd = sys_socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(sockfd < 0)
+    {
+        dbg_info("socket create fail\r\n");
+        return -1;
+    }
     struct sockaddr_in addr;
-    struct timeval time;
-    time.tv_sec = 1;
-    time.tv_usec = 0;
-    inet_pton(AF_INET, "192.168.169.40", &addr.sin_addr);
-    pkg_t *package = create_icmp_req_pkg(data_buf, 1000);
-    package_read_pos(package, buf, package->total, 0);
-    len = sys_sendto(sockfd, buf, package->total, 0, &addr, sizeof(struct sockaddr_in));
-    int ret = sys_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, sizeof(struct timeval));
-    len = sys_recvfrom(sockfd, recv_buf, 2000, 0, &addr, sizeof(struct sockaddr_in));
-    pkg_t *recv_pkg = package_create(recv_buf, len);
-    icmpv4_t *icmp = package_data(recv_pkg, sizeof(icmpv4_t), 20); // 跳过ip头
-    return;
-}
-#pragma pack(1)
-typedef struct _icmp_req_t
-{
-    icmpv4_t icmp;
-    time_t time_stamp;
-    uint8_t data_buf[2000];
-} icmp_req_t;
-#pragma pack()
-/*ping 192.168.169.40 -c1 -s100*/
-#include "rtc.h"
-#include "algrithem.h"
-void ping_run(const char *str_ip, int c, int s)
-{
-    bool flag = false;
-    uint8_t recv_buf[2000] = {0};
-    tm_t clock_time;
-    for (int i = 0; i < c; i++)
-    {
-        // 构造icmp请求包
-        int len;
-        icmp_req_t icmp_pkg;
-        memset(icmp_pkg.data_buf, 0xAA, s);
-        icmp_pkg.icmp.head.code = 0;
-        icmp_pkg.icmp.head.type = 8;
-        icmp_pkg.icmp.head.checksum = 0;
-        icmp_pkg.icmp.Identifier = 1;
-        icmp_pkg.icmp.Sequence = i + 1;
-        sys_get_clocktime(&clock_time);
-        icmp_pkg.time_stamp = sys_mktime(&clock_time);
-        int check_len = sizeof(icmp_req_t) - (2000 - s);
-        icmp_pkg.icmp.head.checksum = checksum16(0, &icmp_pkg, check_len, 0, 1);
+    addr.sin_family = AF_INET;
+    inet_pton(AF_INET,dest_ip,&addr.sin_addr.s_addr);
+    addr.sin_port = htons(dest_port);
 
-        int sockfd = sys_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-
-        struct timeval time;
-        time.tv_sec = 3;
-        time.tv_usec = 0;
-        //sys_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time, sizeof(struct timeval));
-
-        struct sockaddr_in addr;
-        inet_pton(AF_INET, str_ip, &addr.sin_addr);
-        len = sys_sendto(sockfd, &icmp_pkg, check_len, 0, &addr, sizeof(struct sockaddr_in));
-
-        len = sys_recvfrom(sockfd, recv_buf, 2000, 0, &addr, sizeof(struct sockaddr_in));
-        if (len <= 0)
-        {
-            continue;
-        }
-        int icmp_req_head_len = sizeof(ipv4_header_t) + sizeof(icmpv4_t) + sizeof(time_t);
-        uint8_t *start = recv_buf + icmp_req_head_len;
-        int j;
-        for (j = 0; j < s; j++, start++)
-        {
-            if (icmp_pkg.data_buf[j] == *start)
-            {
-                continue;
-            }
-            else
-            {
-                break;
-            }
-        }
-        if (j != s)
-        {
-            continue; // 如果数据部分有不一样的，接受数据失败了，后面就不用输出信息了
-        }
-        flag = true;
-        ipv4_header_t *ipv4_head = recv_buf;
-        uint8_t ttl = ipv4_head->ttl;
-        icmp_req_t *icmp_reply = recv_buf + sizeof(ipv4_header_t); // 略过ipv4头
-        time_t old_time = icmp_reply->time_stamp;
-        memset(&clock_time, 0, sizeof(tm_t));
-        sys_get_clocktime(&clock_time);
-        time_t new_time = sys_mktime(&clock_time);
-        int diff_ms = new_time - old_time;
-
-        dbg_info("%dbytes recv from %s:seq=%d,ttl=%d,time=%dms\r\n", len, str_ip, i + 1, ttl, diff_ms);
-        sys_sleep_ms(500);
-    }
-
-    if (!flag)
-    {
-        // 没有一次信息输出
-        dbg_info("ping time out\r\n");
-    }
-}
-sem_t sem_ello;
-task_t hello_test;
-void* hellofunc(void* arg)
-{
-    sys_sleep_ms(2000);
-    sys_sem_notify(&sem_ello);
+    int send_len = 0,recv_len = 0;
     while (1)
     {
-        dbg_info("hello\r\n");
+        send_len = sys_sendto(sockfd,message,strlen(message),0,&addr,sizeof(struct sockaddr_in));
+        if(send_len < 0)
+        {
+            dbg_info("send message fail\r\n");
+        }
+        dbg_info("send a message:%s\r\n",message);
+        socklen_t addr_len = sizeof(struct sockaddr_in);
+        struct sockaddr_in client_addr;
+        recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
+        if(recv_len < 0)
+        {
+            dbg_info("recvfrom message fail\r\n");
+        }
+        dbg_info("recv a message:%s\r\n",recv_buf);
+        memset(recv_buf,0,recv_len);
         sys_sleep_ms(2000);
-        sys_sem_notify(&sem_ello);
     }
     
-    
+
+
+    return 0;
 }
 void net_socket_test(void)
 {
-    sys_sem_init(&sem_ello,0);
-    ip_route_show();
-    //ping_run("192.168.169.40", 2, 500);
-    ping_run("8.8.8.8", 2, 500);
-    create_kernel_process(&hello_test,hellofunc);
-    sys_sem_wait(&sem_ello);
-    dbg_info("wake up\r\n");
-    sys_sem_wait(&sem_ello);
-    dbg_info("wake up agin\r\n");
-    //ping_run("192.168.169.40", 1, 500);
+    udp_client_test();
+    // const char* str = "helloworld";
+    // pkg_t* pkg = package_create(str,strlen(str));
+    // ipaddr_t dest;
+    // ipaddr_s2n("192.168.169.40",&dest);
+    // ipv4_out(pkg,PROTOCAL_TYPE_UDP,&dest);
     return;
 }
 void rtl8139_drive_test(void)

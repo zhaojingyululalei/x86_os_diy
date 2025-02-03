@@ -72,7 +72,8 @@
 			"socket_param.h": "c",
 			"raw.h": "c",
 			"net_syscall.h": "c",
-			"type_traits": "c"
+			"type_traits": "c",
+			"net_cfg.h": "c"
 		}
 	}
 }
