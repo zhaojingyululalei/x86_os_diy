@@ -79,8 +79,11 @@ int net_task_test(uint16_t x)
 #define RECV_BUF_MAX_SIZE   1000
 int udp_client_test(void)
 {
+    int ret;
     /*config*/
     const char* dest_ip = "192.168.169.40";
+    const char* host_ip = "192.168.169.50";
+    port_t host_port = 1500;
     port_t dest_port = 5500;
     const char* message = "hello world\r\n";
 
@@ -92,15 +95,34 @@ int udp_client_test(void)
         dbg_info("socket create fail\r\n");
         return -1;
     }
+
+    struct sockaddr_in local;
+    local.sin_family = AF_INET;
+    local.sin_port = htons(host_port);
+    inet_pton(AF_INET,host_ip,&local.sin_addr.s_addr);
+
+    ret = sys_bind(sockfd,&local,sizeof(struct sockaddr));
+    if(ret < 0)
+    {
+        dbg_info("bind fail\r\n");
+    }
+
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     inet_pton(AF_INET,dest_ip,&addr.sin_addr.s_addr);
     addr.sin_port = htons(dest_port);
 
+    ret = sys_connect(sockfd,&addr,sizeof(struct sockaddr_in));
+    if(ret < 0)
+    {
+        dbg_info("connect fail\r\n");
+        return;
+    }
     int send_len = 0,recv_len = 0;
     while (1)
     {
-        send_len = sys_sendto(sockfd,message,strlen(message),0,&addr,sizeof(struct sockaddr_in));
+        //send_len = sys_sendto(sockfd,message,strlen(message),0,&addr,sizeof(struct sockaddr_in));
+        send_len = sys_send(sockfd,message,strlen(message),0);
         if(send_len < 0)
         {
             dbg_info("send message fail\r\n");
@@ -108,7 +130,8 @@ int udp_client_test(void)
         dbg_info("send a message:%s\r\n",message);
         socklen_t addr_len = sizeof(struct sockaddr_in);
         struct sockaddr_in client_addr;
-        recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
+        //recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
+        recv_len = sys_recv(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0);
         if(recv_len < 0)
         {
             dbg_info("recvfrom message fail\r\n");

@@ -82,5 +82,8 @@ int sock_sendto(void* arg);
 int sock_recvfrom(void* arg);
 int sock_setsockopt(void* arg);
 int sock_closesocket(void* arg);
-
+int sock_connect(void* arg);
+int sock_send(void* arg);
+int sock_recv(void* arg);
+int sock_bind(void*arg);
 #endif

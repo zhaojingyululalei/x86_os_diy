@@ -53,7 +53,6 @@ void sock_init(sock_t *sock, int family, int protocal, const sock_ops_t *ops)
     sock_wait_init(&sock->send_wait);
     sock_wait_init(&sock->recv_wait);
     sock_wait_init(&sock->conn_wait);
-    
 }
 static const struct
 {
@@ -85,7 +84,7 @@ int sock_create(void *arg)
         socket_free(s);
         return -1;
     }
-    
+
     s->sock = sock;
     return socket_get_index(s);
 }
@@ -118,7 +117,7 @@ int sock_recvfrom(void *arg)
 {
     sock_recvfrom_param_t *param = (sock_recvfrom_param_t *)arg;
 
-    if ( param->sockfd < 0)
+    if (param->sockfd < 0)
     {
         dbg_error("sockfd wrong\r\n");
         return -1;
@@ -139,10 +138,10 @@ int sock_recvfrom(void *arg)
     return sock->ops->recvfrom(sock, param->buf, param->buf_len, param->flags, param->addr, param->addr_len);
 }
 
-int sock_setsockopt(void* arg)
+int sock_setsockopt(void *arg)
 {
     sock_setsockopt_param_t *param = (sock_setsockopt_param_t *)arg;
-    if(param->level!=SOL_SOCKET)
+    if (param->level != SOL_SOCKET)
     {
         dbg_error("unkown sock opt level\r\n");
         return -1;
@@ -160,13 +159,10 @@ int sock_setsockopt(void* arg)
         return -2;
     }
 
-    return sock->ops->setsockopt(sock,param->level,param->optname,param->optval,param->optlen);
-    
-    
-   
+    return sock->ops->setsockopt(sock, param->level, param->optname, param->optval, param->optlen);
 }
 
-int sock_closesocket(void* arg)
+int sock_closesocket(void *arg)
 {
     int ret;
     int sockfd = (int)arg;
@@ -182,32 +178,117 @@ int sock_closesocket(void* arg)
         dbg_error("socket create error,socket->sock is null\r\n");
         return -2;
     }
-    ret =  sock->ops->close(sock);//释放对应类型的所有资源，例如raw的所有资源
-    socket_free(socket); //回收socket
+    ret = sock->ops->close(sock); // 释放对应类型的所有资源，例如raw的所有资源
+    socket_free(socket);          // 回收socket
     return ret;
 }
 
-
-
-
-
-
-
-
-
-void sock_wait_init(sock_wait_t* wait)
+int sock_connect(void *arg)
 {
-    
-    semaphore_init(&wait->sem,0);
+    sock_connect_param_t *param = (sock_connect_param_t *)arg;
+    if (param->sockfd < 0)
+    {
+        dbg_error("unkown sock opt level\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+    return sock->ops->connect(sock, param->addr, param->len);
+}
+int sock_send(void *arg)
+{
+    sock_send_param_t *param = (sock_send_param_t *)arg;
+    if (param->sockfd < 0)
+    {
+        dbg_error("unkown sock opt level\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+    return sock->ops->send(sock, param->buf, param->len, param->flags);
+}
+int sock_recv(void *arg)
+{
+    sock_recv_param_t *param = (sock_recv_param_t *)arg;
+
+    if (param->sockfd < 0)
+    {
+        dbg_error("sockfd wrong\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+
+    return sock->ops->recv(sock, param->buf, param->len, param->flags);
+}
+
+int sock_bind(void*arg)
+{
+    sock_bind_param_t* param = (sock_bind_param_t *)arg;
+    if (param->sockfd < 0)
+    {
+        dbg_error("sockfd wrong\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+
+    return sock->ops->bind(sock,param->addr,param->addrlen);
+}
+
+void sock_wait_init(sock_wait_t *wait)
+{
+
+    semaphore_init(&wait->sem, 0);
     wait->tmo = 0;
 }
-int sock_wait_set(sock_t* sock,int tmo,int flag)
+int sock_wait_set(sock_t *sock, int tmo, int flag)
 {
     sock->wait_flag |= flag;
     switch (flag)
     {
     case SOCK_RECV_WAIT:
-         sock->recv_wait.tmo = tmo;
+        sock->recv_wait.tmo = tmo;
         break;
     case SOCK_SEND_WAIT:
         sock->send_wait.tmo = tmo;
@@ -217,16 +298,16 @@ int sock_wait_set(sock_t* sock,int tmo,int flag)
         break;
     default:
         dbg_error("unkown sock wait type\r\n");
-        return  -1;
+        return -1;
     }
-    
+
     return 0;
 }
-int sock_wait_enter(sock_wait_t* wait)
+int sock_wait_enter(sock_wait_t *wait)
 {
-    return time_wait(&wait->sem,wait->tmo);
+    return time_wait(&wait->sem, wait->tmo);
 }
-void sock_wait_notify(sock_wait_t* wait)
+void sock_wait_notify(sock_wait_t *wait)
 {
     return semaphore_post(&wait->sem);
 }

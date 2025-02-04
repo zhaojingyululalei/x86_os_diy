@@ -6,35 +6,64 @@ typedef struct _sock_create_param_t
     int family;
     int type;
     int protocal;
-}sock_create_param_t;
+} sock_create_param_t;
 
 typedef struct _sock_sendto_param_t
 {
     int sockfd;
-    uint8_t * buf;
+    const uint8_t *buf;
     size_t buf_len;
     int flags;
-    struct sockaddr* addr;
-    socklen_t * addr_len;
-}sock_sendto_param_t;
+    const struct sockaddr *addr;
+    socklen_t *addr_len;
+} sock_sendto_param_t;
 
 typedef struct _sock_recvfrom_param_t
 {
     int sockfd;
-    uint8_t* buf;
+    uint8_t *buf;
     size_t buf_len;
     int flags;
-    struct sockaddr* addr;
-    socklen_t * addr_len;
-}sock_recvfrom_param_t;
+    struct sockaddr *addr;
+    socklen_t *addr_len;
+} sock_recvfrom_param_t;
 
 typedef struct _sock_setsockopt_param_t
 {
     int sockfd;
     int level;
     int optname;
-    const char * optval;
+    const char *optval;
     int optlen;
-}sock_setsockopt_param_t;
+} sock_setsockopt_param_t;
 
+typedef struct _sock_connect_param_t
+{
+    int sockfd;
+    const struct sockaddr *addr;
+    socklen_t len;
+} sock_connect_param_t;
+
+typedef struct _sock_send_param_t
+{
+    int sockfd;
+    const void *buf;
+    size_t len;
+    int flags;
+} sock_send_param_t;
+
+typedef struct _sock_recv_param_t
+{
+    int sockfd;
+    void *buf;
+    size_t len;
+    int flags;
+} sock_recv_param_t;
+
+typedef struct _sock_bind_param_t
+{
+    int sockfd;
+    const struct sockaddr *addr;
+    socklen_t addrlen;
+} sock_bind_param_t;
 #endif

@@ -10,19 +10,18 @@ static list_t udp_list;
 static uint8_t udp_data_buf[UDP_BUF_MAX_NR * (sizeof(list_node_t) + sizeof(udp_data_t))];
 static mempool_t udp_data_pool;
 
-
-static udp_data_t* udp_data_alloc(void)
+static udp_data_t *udp_data_alloc(void)
 {
-    udp_data_t* ret = mempool_alloc_blk(&udp_data_pool,-1);
-    if(!ret)
+    udp_data_t *ret = mempool_alloc_blk(&udp_data_pool, -1);
+    if (!ret)
         return NULL;
-    memset(ret,0,sizeof(udp_data_t));
+    memset(ret, 0, sizeof(udp_data_t));
     return ret;
 }
-static void udp_data_free(udp_data_t* data)
+static void udp_data_free(udp_data_t *data)
 {
     package_collect(data->package);
-    mempool_free_blk(&udp_data_pool,data);
+    mempool_free_blk(&udp_data_pool, data);
 }
 static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
                         struct sockaddr *src, socklen_t *addr_len)
@@ -32,9 +31,9 @@ static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
     udp_t *udp = (udp_t *)s;
 
     list_node_t *udp_data_node = list_remove_first(&udp->recv_list);
-    udp_data_t* udp_data = list_node_parent(udp_data_node, udp_data_t, node);
+    udp_data_t *udp_data = list_node_parent(udp_data_node, udp_data_t, node);
 
-    pkg_t* package = udp_data->package;
+    pkg_t *package = udp_data->package;
 
     int cpy_len = len > package->total ? package->total : len;
     ret = package_read_pos(package, buf, cpy_len, 0);
@@ -44,7 +43,7 @@ static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
         dbg_error("package_read fault\r\n");
         return -2;
     }
-    //成功读取数据到buf
+    // 成功读取数据到buf
     struct sockaddr_in src_addr;
     src_addr.sin_addr.s_addr = udp_data->from_ip.q_addr;
     src_addr.sin_port = udp_data->from_port;
@@ -52,7 +51,7 @@ static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
 
     memcpy(src, &src_addr, sizeof(struct sockaddr_in));
     *addr_len = sizeof(struct sockaddr_in);
-    package_collect(package);
+    udp_data_free(udp_data);
     return cpy_len;
 }
 static int udp_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
@@ -61,10 +60,29 @@ static int udp_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
     int ret;
     pkg_t *package = package_create(buf, len);
     struct sockaddr_in *addr = (struct sockaddr_in *)dest;
+    // 检查协议族类型
     if (addr->sin_family != s->family)
     {
         dbg_error("sockaddr set wrong :in filed sin_family\r\n");
         return -1;
+    }
+    // 检查目标地址和端口
+    if (s->target_ip.q_addr != 0)
+    {
+        // target_ip有数据，表明之前调用connect连接了
+        if (s->target_ip.q_addr != addr->sin_addr.s_addr)
+        {
+            dbg_warning("target_ip and sockaddr_dest not match\r\n");
+            return -2;
+        }
+    }
+    if (s->target_port != 0)
+    {
+        if (s->target_port != ntohs(addr->sin_port))
+        {
+            dbg_warning("target_port and sockaddr_dest not match\r\n");
+            return -3;
+        }
     }
     // 之前没绑定端口，动态分配一个
     if (s->host_port == 0)
@@ -109,10 +127,93 @@ static int udp_setsockopt(struct _sock_t *s, int level, int optname, const char 
     }
     return 0;
 }
+static int udp_close(struct _sock_t *s)
+{
+    udp_t *udp = (udp_t *)s;
+    udp_data_t *first_data;
+    // 关闭端口
+    net_port_free(first_data->from_port);
+    // 释放各种内存池资源
+    while ((first_data = udp->recv_list.first) != NULL)
+    {
+        list_remove_first(&udp->recv_list);
+        udp_data_free(first_data);
+    }
+    memset(udp, 0, sizeof(udp_t));
+    mempool_free_blk(&udp_pool, udp);
+    return 0;
+}
+static int udp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t len)
+{
+    const struct sockaddr_in *target_addr = (const struct sockaddr_in *)addr;
+    s->target_ip.q_addr = target_addr->sin_addr.s_addr;
+    s->target_port = ntohs(target_addr->sin_port); // 端口之前设置成网络序了
+    return 0;
+}
+static int udp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
+{
+    struct sockaddr_in addr;
+    addr.sin_addr.s_addr = s->target_ip.q_addr;
+    addr.sin_family = s->family;
+    addr.sin_port = htons(s->target_port);
+    return udp_sendto(s, buf, len, flags, &addr, sizeof(struct sockaddr_in));
+}
+static int udp_recv(struct _sock_t *s, void *buf, size_t len, int flags)
+{
+
+    int ret;
+
+    udp_t *udp = (udp_t *)s;
+
+    list_node_t *udp_data_node = list_remove_first(&udp->recv_list);
+    udp_data_t *udp_data = list_node_parent(udp_data_node, udp_data_t, node);
+
+    pkg_t *package = udp_data->package;
+
+    int cpy_len = len > package->total ? package->total : len;
+    ret = package_read_pos(package, buf, cpy_len, 0);
+    if (ret < 0)
+    {
+        list_insert_first(&udp->recv_list, &udp_data->node);
+        dbg_error("package_read fault\r\n");
+        return -2;
+    }
+    // 成功读取数据到buf
+    
+    udp_data_free(udp_data);
+    return cpy_len;
+}
+static int udp_bind(struct _sock_t* s, const struct  sockaddr* addr,  socklen_t len)
+{
+    if(s->family!=addr->sa_family)
+    {
+        dbg_warning("famliy not match\r\n");
+        return -1;
+    }
+    const struct sockaddr_in* host = (const struct sockaddr_in*)addr;
+    s->host_ip.q_addr = host->sin_addr.s_addr;
+    s->host_port = ntohs(host->sin_port);
+
+    //检查端口是否被占用，如果没占用就开启端口
+    if(!net_port_is_free(s->host_port))
+    {
+        dbg_warning("bind port wrong,port is used\r\n");
+        return -1;
+    }
+    else
+    {
+        net_port_use(s->host_port);
+    }
+    return 0;
+}
 static const sock_ops_t udp_ops = {
     .setsockopt = udp_setsockopt,
     .sendto = udp_sendto,
     .recvfrom = udp_recvfrom,
+    .connect = udp_connect,
+    .send = udp_send,
+    .recv = udp_recv,
+    .bind = udp_bind,
 };
 sock_t *udp_create(int family, int protocol)
 {
@@ -144,28 +245,28 @@ int udp_out(port_t src_port, port_t dest_port, ipaddr_t *dest_ip, pkg_t *package
         dbg_warning("ip route fail\r\n");
         return -4;
     }
-    ipaddr_t* src_ip = &entry->netif->info.ipaddr;
+    ipaddr_t *src_ip = &entry->netif->info.ipaddr;
 
-    udp_head->checksum = package_checksum_peso(package,src_ip,dest_ip,IPPROTO_UDP ) ;
+    udp_head->checksum = package_checksum_peso(package, src_ip, dest_ip, IPPROTO_UDP);
     return ipv4_out(package, PROTOCAL_TYPE_UDP, dest_ip);
 }
 
-static void udp_parse(udp_head_t* head,udp_parse_t* parse)
+static void udp_parse(udp_head_t *head, udp_parse_t *parse)
 {
     parse->src_port = ntohs(head->src_port);
     parse->dest_port = ntohs(head->dest_port);
     parse->total_len = ntohs(head->total_len);
     parse->checksum = head->checksum;
 }
-static int udp_is_ok(pkg_t* package,ipaddr_t* src_ip,ipaddr_t* dest_ip,udp_parse_t* parse)
+static int udp_is_ok(pkg_t *package, ipaddr_t *src_ip, ipaddr_t *dest_ip, udp_parse_t *parse)
 {
-    if(package_checksum_peso(package,src_ip,dest_ip,IPPROTO_UDP))
+    if (package_checksum_peso(package, src_ip, dest_ip, IPPROTO_UDP))
     {
         dbg_warning("udp checksum wrong\r\n");
         return -1;
     }
-    //如果端口没开，端口不可达
-    if(!net_port_is_used(parse->dest_port))
+    // 如果端口没开，端口不可达
+    if (!net_port_is_used(parse->dest_port))
     {
         dbg_warning("udp prot unreachable\r\n");
         return -3;
@@ -173,46 +274,55 @@ static int udp_is_ok(pkg_t* package,ipaddr_t* src_ip,ipaddr_t* dest_ip,udp_parse
     return 0;
 }
 
-int udp_in(pkg_t* package,ipaddr_t* src_ip,ipaddr_t* dest_ip)
+int udp_in(pkg_t *package, ipaddr_t *src_ip, ipaddr_t *dest_ip)
 {
     int ret;
-    udp_head_t* udp_head = package_data(package,sizeof(udp_head_t),0);
+    udp_head_t *udp_head = package_data(package, sizeof(udp_head_t), 0);
     udp_parse_t udp_parsed;
-    udp_parse(udp_head,&udp_parsed);
+    udp_parse(udp_head, &udp_parsed);
 
-    ret = udp_is_ok(package,src_ip,dest_ip,&udp_parsed);
-    if(ret<0){
+    ret = udp_is_ok(package, src_ip, dest_ip, &udp_parsed);
+    if (ret < 0)
+    {
         return ret;
     }
-    //去udp头
-    package_shrank_front(package,sizeof(udp_head_t));
+    // 去udp头
+    package_shrank_front(package, sizeof(udp_head_t));
 
     port_t host_port = udp_parsed.dest_port;
     ipaddr_t *host_ip = dest_ip;
-    //寻找 把数据挂到相应的udp recvlist中
-    udp_t* udp =NULL;
-    list_node_t* cur_node = udp_list.first;
+    port_t target_port = udp_parsed.src_port;
+    ipaddr_t *target_ip = src_ip;
+    // 寻找 把数据挂到相应的udp recvlist中
+    udp_t *udp = NULL;
+    list_node_t *cur_node = udp_list.first;
     while (cur_node)
     {
-        udp_t* cur_udp = list_node_parent(cur_node,udp_t,node);
-        if(cur_udp->base.host_port == host_port)
+        udp_t *cur_udp = list_node_parent(cur_node, udp_t, node);
+        if (cur_udp->base.host_port == host_port)
         {
             udp = cur_udp;
-            //ip是0，表示接受所有网卡的数据
-            if(cur_udp->base.host_ip.q_addr == host_ip->q_addr || cur_udp->base.host_ip.q_addr == 0)
+            // ip是0，表示接受所有网卡的数据
+            if (cur_udp->base.host_ip.q_addr == host_ip->q_addr || cur_udp->base.host_ip.q_addr == 0)
             {
-                udp_data_t* udp_data = udp_data_alloc();
-                udp_data->from_ip.q_addr = src_ip->q_addr;
-                udp_data->from_port = udp_parsed.src_port;
-                udp_data->package = package;
-                list_insert_last(&cur_udp->recv_list,&udp_data->node);
-                sock_wait_notify(&cur_udp->base.recv_wait);
+                if ((udp->base.target_ip.q_addr == 0 && udp->base.target_port == 0) ||
+                    (udp->base.target_ip.q_addr == target_ip->q_addr && udp->base.target_port == target_port))
+                {
+                    // 如果target_ip和target_port都没有的话，说明之前没有connect，那么该包可以挂载到该sock上
+                    // 如果target_ip和target_port都存在的话，那么要求该包必须符合target_ip和target_port才可以挂载
+                    udp_data_t *udp_data = udp_data_alloc();
+                    udp_data->from_ip.q_addr = src_ip->q_addr;
+                    udp_data->from_port = udp_parsed.src_port;
+                    udp_data->package = package;
+                    list_insert_last(&cur_udp->recv_list, &udp_data->node);
+                    sock_wait_notify(&cur_udp->base.recv_wait);
+                }
             }
         }
         cur_node = cur_node->next;
     }
-    //一个合适的socket都没找到
-    if(!udp)
+    // 一个合适的socket都没找到
+    if (!udp)
     {
         return -1;
     }
@@ -222,5 +332,5 @@ void udp_init(void)
 {
     list_init(&udp_list);
     mempool_init(&udp_pool, udp_buf, UDP_BUF_MAX_NR, sizeof(udp_t));
-    mempool_init(&udp_data_pool,udp_data_buf,UDP_BUF_MAX_NR,sizeof(udp_data_t));
+    mempool_init(&udp_data_pool, udp_data_buf, UDP_BUF_MAX_NR, sizeof(udp_data_t));
 }

@@ -3,6 +3,9 @@
 #include "types.h"
 #include "net_cfg.h"
 #include "_time.h"
+
+#define INADDR_ANY 0
+
 #define AF_INET 0      // IPv4协议簇
 #define SOCK_RAW 1     // 原始数据报
 #define SOCK_DGRAM 2   // 数据报式套接字
@@ -73,10 +76,14 @@ struct sockaddr_in
 
 
 int sys_socket(int family,int type,int protocal);
+int sys_connect(int sockfd,const struct  sockaddr* addr,  socklen_t len);
 int sys_sendto(int sockfd,const void* buf,size_t buf_len,int flags,
                         const struct sockaddr* dest,socklen_t dest_len);
                         
 int sys_recvfrom(int sockfd, void *buf, size_t len, int flags,
                  struct sockaddr *src, socklen_t *addr_len);
 int sys_setsockopt(int sockfd,  int level, int optname, const char * optval, int optlen);
+int sys_send(int sockfd, const void *buf, size_t len, int flags);
+int sys_recv(int sockfd, void *buf, size_t len, int flags);
+int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 #endif
