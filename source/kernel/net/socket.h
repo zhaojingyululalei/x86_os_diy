@@ -25,6 +25,7 @@
 #define TCP_KEEPIDLE 4  // Keepalive空闲时间
 #define TCP_KEEPINTVL 5 // 超时间隔
 #define TCP_KEEPCNT 6   // 重试的次数
+#define SO_REUSEPORT 7 //端口重用，
 
 typedef uint16_t port_t;
 typedef int socklen_t;
@@ -86,4 +87,5 @@ int sys_setsockopt(int sockfd,  int level, int optname, const char * optval, int
 int sys_send(int sockfd, const void *buf, size_t len, int flags);
 int sys_recv(int sockfd, void *buf, size_t len, int flags);
 int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int sys_closesocket(int sockfd);
 #endif

@@ -8,6 +8,7 @@
 #include "net_tools/soft_timer.h"
 #include "raw.h"
 #include "udp.h"
+#include "tcp.h"
 static uint16_t ipv4_frag_global_id = 1;
 
 /*ip route table*/
@@ -230,7 +231,13 @@ static int ipv4_normal_in(netif_t *netif, pkg_t *package, ipv4_head_parse_t *par
 
         break;
     case PROTOCAL_TYPE_TCP:
-        dbg_info("tcp handle:to be continued\r\n");
+        ret = tcp_in(package,&parse->src_ip,&parse->dest_ip);
+        if(ret < 0){
+            return ret;
+        }
+        else{
+            return 0;
+        }
         break;
     default:
         ret = raw_in(netif, package);

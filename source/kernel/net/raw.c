@@ -169,7 +169,7 @@ int raw_in(netif_t *netif, pkg_t *package)
             }
             pkg_t *clone_pkg = package_clone(package);
             list_insert_last(&cur_raw->recv_list, &clone_pkg->node);
-            sock_wait_notify(&cur_raw->base.recv_wait);
+            sock_wait_notify(&cur_raw->base.recv_wait,NET_ERR_OK);
         }
         cur = cur->next;
     }

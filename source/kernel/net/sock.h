@@ -5,7 +5,7 @@
 #include "list.h"
 #include "socket.h"
 #include "net_tools/net_threads.h"
-#define SOCKET_MAX_NR    20
+
 
 struct _sock_t;
 typedef struct _sock_ops_t
@@ -35,13 +35,14 @@ typedef struct _sock_wait_t
     semaphore_t sem;
     
     int tmo;  //单位ms   0阻塞  >0超时唤醒
-
+    net_err_t err;
 }sock_wait_t;
 
 void sock_wait_init(sock_wait_t* wait);
 int sock_wait_set(struct _sock_t* sock,int tmo,int flag);
 int sock_wait_enter(sock_wait_t* wait);
-void sock_wait_notify(sock_wait_t* wait);
+void sock_wait_notify(sock_wait_t* wait,net_err_t err);
+void sock_wait_destory(sock_wait_t *wait);
 typedef struct _sock_t
 {
     port_t host_port;
@@ -86,4 +87,5 @@ int sock_connect(void* arg);
 int sock_send(void* arg);
 int sock_recv(void* arg);
 int sock_bind(void*arg);
+
 #endif

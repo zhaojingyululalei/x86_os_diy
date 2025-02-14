@@ -5,6 +5,9 @@
 #include "socket.h"
 #include "raw.h"
 #include "udp.h"
+#include "tcp.h"
+
+#define SOCKET_MAX_NR    (TCP_BUF_MAX_NR + UDP_BUF_MAX_NR + RAW_MAX_NR)
 /*工作线程所要执行的函数*/
 static socket_t socket_tbl[SOCKET_MAX_NR] = {0};
 
@@ -60,6 +63,7 @@ static const struct
 } ops_create_tbl[] = {
     [SOCK_RAW] = {.create = raw_create},
     [SOCK_DGRAM] = {.create = udp_create},
+    [SOCK_STREAM] = {.create = tcp_create}
 };
 
 int sock_create(void *arg)
@@ -281,6 +285,7 @@ void sock_wait_init(sock_wait_t *wait)
 
     semaphore_init(&wait->sem, 0);
     wait->tmo = 0;
+    wait->err =NET_ERR_OK;
 }
 int sock_wait_set(sock_t *sock, int tmo, int flag)
 {
@@ -305,9 +310,22 @@ int sock_wait_set(sock_t *sock, int tmo, int flag)
 }
 int sock_wait_enter(sock_wait_t *wait)
 {
-    return time_wait(&wait->sem, wait->tmo);
+    int ret;
+    ret = time_wait(&wait->sem, wait->tmo);
+    if(ret < 0)
+    {
+        if(ret == -3){
+            wait->err = NET_ERR_TMO;
+        }
+    }
+    return wait->err;
 }
-void sock_wait_notify(sock_wait_t *wait)
+/*是因为啥唤醒的*/
+void sock_wait_notify(sock_wait_t *wait,net_err_t err)
 {
-    return semaphore_post(&wait->sem);
+    wait->err = err;
+    semaphore_post(&wait->sem);
+}
+void sock_wait_destory(sock_wait_t *wait){
+    semaphore_destory(&wait->sem);
 }

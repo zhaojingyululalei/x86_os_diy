@@ -2,6 +2,7 @@
 #include "net_submit.h"
 #include "socket_param.h"
 #include "sock.h"
+#include "tcp.h"
 /**
  * 主要负责提交任务给工作线程
  * 而且都是系统调用
@@ -26,17 +27,22 @@ int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t len)
     param.len = len;
     int ret;
     sock_t *sock = socket_from_index(sockfd)->sock;
+
+    ret = net_task_submit(sock_connect, &param);
     // 只有tcp协议的connect才需要等待，raw和udp的connect不需要等待
     if (sock->protocal == IPPROTO_TCP)
     {
         ret = sock_wait_enter(&sock->conn_wait);
         if (ret < 0)
         {
-            return -1;
+            if (ret == NET_ERR_RECV_RST)
+            {
+                // 如果是收到了RST报文，还需要释放tcp资源，彻底把这个socket清理掉
+            }
+            return ret;
         }
     }
 
-    ret = net_task_submit(sock_connect, &param);
     return ret;
 }
 
@@ -185,13 +191,34 @@ int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     param.addrlen = addrlen;
 
     int ret;
-    ret = net_task_submit(sock_bind,&param);
+    ret = net_task_submit(sock_bind, &param);
     return ret;
 }
 
 int sys_closesocket(int sockfd)
 {
     int ret;
+    sock_t *sock = socket_from_index(sockfd)->sock;
+    tcp_t *tcp = (tcp_t *)sock;
+    // 如果是tcp调用close，协议栈会帮助发送fin帧
     ret = net_task_submit(sock_closesocket, sockfd);
+    // 然后等着ack
+    if (ret == NET_ERR_NEED_WAIT)
+    {
+        if (tcp->state == TCP_STATE_LAST_ACK || tcp->state == TCP_STATE_FIN_WAIT1)
+        {
+            ret = sock_wait_enter(&tcp->close_wait);
+            if (ret < 0)
+            {
+                if (ret == NET_ERR_CLOSE)
+                {
+                    return 0;
+                }else{
+                    return ret;
+                }
+
+            }
+        }
+    }
     return ret;
 }

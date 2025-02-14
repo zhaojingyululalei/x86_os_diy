@@ -73,7 +73,10 @@
 			"raw.h": "c",
 			"net_syscall.h": "c",
 			"type_traits": "c",
-			"net_cfg.h": "c"
+			"net_cfg.h": "c",
+			"tcp.h": "c",
+			"*.tcc": "c",
+			"algrithem.h": "c"
 		}
 	}
 }

@@ -109,3 +109,9 @@ int sys_local_time(tm_t *tm, time_t time)
 {
     return localtime(tm,time);
 }
+uint32_t get_time_seed(void){
+    tm_t tm;
+    sys_get_clocktime(&tm);
+    uint32_t time_seed = sys_mktime(&tm);
+    return time_seed;
+}

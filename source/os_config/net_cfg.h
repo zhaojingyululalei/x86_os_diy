@@ -1,5 +1,12 @@
 #ifndef __NET_CFG_H
 #define __NET_CFG_H
+typedef enum _net_err_t{
+    NET_ERR_NEED_WAIT = 1,
+    NET_ERR_OK=0,
+    NET_ERR_RECV_RST=-1,
+    NET_ERR_TMO=-2,
+    NET_ERR_CLOSE = -3,
+}net_err_t;
 /*addr*/
 #define IPADDR_ARRY_LEN 4
 #define MACADDR_ARRAY_LEN 6
@@ -35,6 +42,8 @@
 
 
 /*debug */
+//这个不要注释掉
+#define TEST_FOR_PORT_RANDOM
 //#define PKG_DBG
 // #define NET_DRIVE_DBG
 // #define NETIF_DBG
@@ -43,4 +52,6 @@
 // #define DBG_SOFT_TIMER_PRINT
 //#define IPV4_DBG
 // #define ICMPV4_DBG
+#define TCP_DBG
+// #define TCP_HASH_TBL_DBG
 #endif

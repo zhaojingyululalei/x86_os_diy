@@ -11,6 +11,7 @@
 #include "sock.h"
 #include "raw.h"
 #include  "udp.h"
+#include "tcp.h"
 void net_init(void)
 {
     //数据包分配结构
@@ -28,4 +29,5 @@ void net_init(void)
     socket_init();
     raw_init();
     udp_init();
+    tcp_init();
 }

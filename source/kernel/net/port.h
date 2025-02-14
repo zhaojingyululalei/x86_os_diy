@@ -12,7 +12,7 @@ typedef struct _net_port_t
     prot_state_t state;
 }net_port_t;
 
-
+extern bool mul_port;
 port_t net_port_dynamic_alloc(void);
 int net_port_free(port_t port);
 int net_port_use(port_t port);

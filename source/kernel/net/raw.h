@@ -3,7 +3,7 @@
 #include "sock.h"
 #include "net_tools/package.h"
 #include "netif.h"
-#define RAW_MAX_NR SOCKET_MAX_NR
+#define RAW_MAX_NR 50
 #define RAW_DEFAULT_PROTOCAL    IPPROTO_ICMP
 typedef struct _raw_t
 {

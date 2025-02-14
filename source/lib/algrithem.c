@@ -1,5 +1,6 @@
 #include "algrithem.h"
-
+#include "_time.h"
+#include "rtc.h"
 /**
  * 计算16位校验和
  * @param buf 数组缓存区起始
@@ -35,4 +36,25 @@ uint16_t checksum16(uint32_t offset, void* buf, uint16_t len, uint32_t pre_sum, 
     }
 
     return complement ? (uint16_t)~checksum : (uint16_t)checksum;
+}
+
+// 初始化随机生成器
+void init_random(randam_generator_t *rg, unsigned int seed) {
+    rg->seed = seed;
+}
+
+// 生成下一个随机数
+unsigned int get_random(randam_generator_t *rg) {
+    rg->seed = (A * rg->seed + C) % M;
+    return rg->seed;
+}
+
+uint32_t random(uint32_t time_seed)
+{
+    uint32_t ret;
+    randam_generator_t rg;
+    
+    init_random(&rg, time_seed);
+    ret = get_random(&rg);
+    return ret;
 }

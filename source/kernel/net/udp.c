@@ -315,7 +315,7 @@ int udp_in(pkg_t *package, ipaddr_t *src_ip, ipaddr_t *dest_ip)
                     udp_data->from_port = udp_parsed.src_port;
                     udp_data->package = package;
                     list_insert_last(&cur_udp->recv_list, &udp_data->node);
-                    sock_wait_notify(&cur_udp->base.recv_wait);
+                    sock_wait_notify(&cur_udp->base.recv_wait,NET_ERR_OK);
                 }
             }
         }

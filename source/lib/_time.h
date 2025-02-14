@@ -18,7 +18,7 @@ time_t kernel_mktime(tm_t *tm);
 int localtime(tm_t *tm, time_t time);
 time_t sys_mktime(tm_t* tm);
 int sys_local_time(tm_t *tm, time_t time);
-
+uint32_t get_time_seed(void);
 struct timeval{
     int tv_sec;
     int tv_usec;
