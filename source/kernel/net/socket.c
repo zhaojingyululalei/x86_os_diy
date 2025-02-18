@@ -75,7 +75,8 @@ int sys_sendto(int sockfd, const void *buf, size_t buf_len, int flags,
 
     return send_len;
 }
-int sys_send(int sockfd, const void *buf, size_t len, int flags)
+/*只要放到缓存里，就算发送成功。对方没收到，按丢包算*/
+static int sys_tcp_send(int sockfd, const void *buf, size_t len, int flags)
 {
     sock_send_param_t param;
     param.sockfd = sockfd;
@@ -83,6 +84,45 @@ int sys_send(int sockfd, const void *buf, size_t len, int flags)
     param.len = len;
     param.flags = flags;
 
+    sock_t *sock = socket_from_index(sockfd)->sock;
+    int remain_len = len;
+    int ret_len = 0, send_len = 0;
+    while (remain_len > 0)
+    {
+        param.buf = buf + send_len;
+        param.len = remain_len;
+
+        ret_len = net_task_submit(sock_send, &param);
+        if (ret_len < 0)
+        {
+            if (ret_len == NET_ERR_NEED_WAIT)
+            {
+                // 等缓存有空闲
+                sock_wait_enter(&sock->send_wait);
+            }
+            else
+            {
+                return -3;
+            }
+        }
+        else
+        {
+            remain_len -= ret_len;
+            send_len += ret_len;
+        }
+    }
+
+    return send_len;
+}
+static int sys_udp_send(int sockfd, const void *buf, size_t len, int flags)
+{
+    sock_send_param_t param;
+    param.sockfd = sockfd;
+    param.buf = buf;
+    param.len = len;
+    param.flags = flags;
+
+    sock_t *sock = socket_from_index(sockfd)->sock;
     int remain_len = len;
     int ret_len = 0, send_len = 0;
     while (remain_len > 0)
@@ -104,6 +144,24 @@ int sys_send(int sockfd, const void *buf, size_t len, int flags)
 
     return send_len;
 }
+int sys_send(int sockfd, const void *buf, size_t len, int flags)
+{
+    sock_send_param_t param;
+    param.sockfd = sockfd;
+    param.buf = buf;
+    param.len = len;
+    param.flags = flags;
+
+    sock_t *sock = socket_from_index(sockfd)->sock;
+    if (sock->protocal == IPPROTO_TCP)
+    {
+        return sys_tcp_send(sockfd, buf, len, flags);
+    }
+    else
+    {
+        return sys_udp_send(sockfd, buf, len, flags);
+    }
+}
 int sys_recv(int sockfd, void *buf, size_t len, int flags)
 {
     sock_recv_param_t param;
@@ -116,19 +174,24 @@ int sys_recv(int sockfd, void *buf, size_t len, int flags)
     int ret_len = 0, recv_len = 0;
     sock_t *sock = socket_from_index(sockfd)->sock;
 
-    ret = sock_wait_enter(&sock->recv_wait);
-    if (ret < 0)
+    while (recv_len == 0)
     {
-        return recv_len;
-    }
+        ret = sock_wait_enter(&sock->recv_wait);
+        // 不论是因为close，还是tmo，接收操作时正确的，但是却没有接收到数据，因此返回0即可
+        if (ret == NET_ERR_CLOSE || ret == NET_ERR_TMO)
+        {
+            return 0;
+        }
 
-    ret_len = net_task_submit(sock_recv, &param);
-    if (ret_len < 0)
-    {
+        ret_len = net_task_submit(sock_recv, &param);
+        // 这里连接受操作都是错的
+        if (ret_len < 0)
+        {
 
-        return -1;
+            return -1;
+        }
+        recv_len += ret_len;
     }
-    recv_len += ret_len;
 
     return recv_len;
 }
@@ -213,10 +276,11 @@ int sys_closesocket(int sockfd)
                 if (ret == NET_ERR_CLOSE)
                 {
                     return 0;
-                }else{
+                }
+                else
+                {
                     return ret;
                 }
-
             }
         }
     }

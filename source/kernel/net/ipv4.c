@@ -124,7 +124,6 @@ ip_route_entry_t *ip_route(ipaddr_t *dest)
 
     int metric_min = 1000000;
     ip_route_entry_t *entry_ret = NULL;
-    /*以后添加路由*/
     // 遍历一遍路由表，网络部分一样就选中，有好几个，比较metric，哪个小选哪个
     list_node_t *cur = ip_route_table.first;
     while (cur)

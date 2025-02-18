@@ -16,21 +16,46 @@ static int tcp_ack_handle(tcp_t *tcp, tcp_parse_t *recv_parse)
         // ACK的值没问题
         // 就算发了20字节，对面只收10字节，那也是对的。那么就先确认10字节，nxt不用动
         // 如果对面迟迟收不到剩余10字节，会有重传处理，目前省略。
+        int snd_cnt = (int)(ack_num - tcp->snd.unack);
+        tcp_buf_remove(&tcp->snd.buf, snd_cnt);
+        sock_wait_notify(&tcp->base.send_wait, NET_ERR_OK);
         tcp->snd.unack = ack_num;
+        if (tcp->state == TCP_STATE_FIN_WAIT2 || tcp->state == TCP_STATE_TIME_WAIT)
+        {
+            ;
+        }
+        else
+        {
+            tcp_send_data(tcp, NULL);
+        }
     }
     return 0;
 }
+
 /**接收对面传来的数据，并且更新tcp_t，然后发送ack帧 */
 static int tcp_data_handle(tcp_t *tcp, pkg_t *package, tcp_parse_t *recv_parse)
 {
+    int ret;
     bool wakeup = false;
-
+    int data_len = package->total - recv_parse->head_len;
     if (recv_parse->fin)
     {
         wakeup = true;
         tcp->rcv.next++;
     }
+    if (data_len > 0)
+    {
+        // 向缓存里面存数据
+        // 返回值不需要处理，没写到缓存里就没写到
+        seq_handle(tcp,recv_parse,package);
+    }
+    if (tcp->rcv.next > tcp->rcv.win)
+    {
+        // 缓存了一部分数据，用户还没有读取
+        wakeup = true;
+    }
 
+    // 收到fin帧或者数据，都需要唤醒
     if (wakeup)
     {
         if (recv_parse->fin)
@@ -38,12 +63,13 @@ static int tcp_data_handle(tcp_t *tcp, pkg_t *package, tcp_parse_t *recv_parse)
             sock_wait_notify(&tcp->base.conn_wait, NET_ERR_CLOSE);
             sock_wait_notify(&tcp->base.recv_wait, NET_ERR_CLOSE);
             sock_wait_notify(&tcp->base.send_wait, NET_ERR_CLOSE);
+            //回应fin帧的ack
+            tcp_send_ack(tcp, recv_parse);
         }
         else
         {
-            sock_wait_notify(&tcp->base.recv_wait, NET_ERR_CLOSE);
+            sock_wait_notify(&tcp->base.recv_wait, NET_ERR_OK);
         }
-        tcp_send_ack(tcp, recv_parse);
     }
     return 0;
 }
@@ -53,10 +79,11 @@ static int tcp_time_wait(tcp_t *tcp)
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_closed)
 {
-    //如果接收到reset报文，不处理
-    //如果是其他类型报文，直接发送reset
-    if(!parse->rst){
-        tcp_send_reset(parse,host,remote);
+    // 如果接收到reset报文，不处理
+    // 如果是其他类型报文，直接发送reset
+    if (!parse->rst)
+    {
+        tcp_send_reset(parse, host, remote);
     }
     return 0;
 }
@@ -89,14 +116,19 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_send)
     if (parse->syn)
     {
         tcp->rcv.init_seq = parse->seq_num;
-        tcp->rcv.next = tcp->rcv.init_seq + 1;
+
+        tcp->rcv.win = tcp->rcv.next = tcp->rcv.init_seq + 1;
         if (parse->ack)
         { // 想让我从哪里开始发
             tcp->snd.unack++;
         }
-        // 如果收到的是syn+ack，tcp三次握手建立连接
+
         if (parse->ack)
         {
+            // 收到syn+ack，读取一下mss选项
+            tcp_read_option(tcp, parse);
+
+            // 如果收到的是syn+ack，tcp三次握手建立连接
             tcp_send_ack(tcp, parse);
             tcp->state = TCP_STATE_ESTABLISHED;
             sock_wait_notify(&tcp->base.conn_wait, NET_ERR_OK);
@@ -304,12 +336,12 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_time_wait)
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_close_wait)
 {
-    //接收到对方的fin+ack后，我发送ack，然后进入close_wait状态
-    //对方可能没收到我发的ack，对方可能会重传fin+ack
-    //在对方没收到我的ack时，他就没关闭，仍然可以发其他数据
-    //因此处理方法和establish一样
-   tcp_in_handle_established(tcp,package,parse,remote,host);
-   return 0; 
+    // 接收到对方的fin+ack后，我发送ack，然后进入close_wait状态
+    // 对方可能没收到我发的ack，对方可能会重传fin+ack
+    // 在对方没收到我的ack时，他就没关闭，仍然可以发其他数据
+    // 因此处理方法和establish一样
+    tcp_in_handle_established(tcp, package, parse, remote, host);
+    return 0;
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_last_ack)
 {

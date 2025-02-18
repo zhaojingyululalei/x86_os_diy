@@ -76,7 +76,9 @@
 			"net_cfg.h": "c",
 			"tcp.h": "c",
 			"*.tcc": "c",
-			"algrithem.h": "c"
+			"algrithem.h": "c",
+			"chrono": "c",
+			"algorithm": "c"
 		}
 	}
 }

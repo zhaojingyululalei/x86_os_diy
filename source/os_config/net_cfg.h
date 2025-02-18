@@ -1,11 +1,11 @@
 #ifndef __NET_CFG_H
 #define __NET_CFG_H
 typedef enum _net_err_t{
-    NET_ERR_NEED_WAIT = 1,
     NET_ERR_OK=0,
-    NET_ERR_RECV_RST=-1,
-    NET_ERR_TMO=-2,
-    NET_ERR_CLOSE = -3,
+    NET_ERR_RECV_RST=-21,
+    NET_ERR_TMO=-22,
+    NET_ERR_CLOSE = -23,
+    NET_ERR_NEED_WAIT = -24,
 }net_err_t;
 /*addr*/
 #define IPADDR_ARRY_LEN 4

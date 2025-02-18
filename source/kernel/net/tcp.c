@@ -39,7 +39,14 @@ static int tcp_init_connect(tcp_t *tcp)
 
     tcp->snd.init_seq = tcp_alloc_iss();
     tcp->snd.next = tcp->snd.unack = tcp->snd.init_seq;
-
+    //初始化接受和发送缓冲区
+    tcp_buf_init(&tcp->snd.buf,tcp->snd.data_buf,TCP_SND_BUF_MAX_SIZE);
+    tcp_buf_init(&tcp->rcv.buf,tcp->rcv.data_buf,TCP_RCV_BUF_MAX_SIZE);
+    tcp->snd.win_size = TCP_SND_WIN_SIZE;
+    tcp->rcv.win_size = TCP_RCV_WIN_SIZE;
+    tcp_seq_init();
+     //接受缓冲区特殊处理一下
+    tcp_buf_expand(&tcp->rcv.buf,tcp->rcv.win_size);
     return 0;
 }
 static int tcp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t len)
@@ -119,9 +126,48 @@ static int tcp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t
 }
 static int tcp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
 {
+    int ret;
+    tcp_t* tcp = (tcp_t*)s;
+    //状态判断
+    if(tcp->state!=TCP_STATE_ESTABLISHED && tcp->state != TCP_STATE_CLOSE_WAIT){
+        dbg_warning("tcp state wrong,can not snd data\r\n");
+        return -1;
+    }
+    int write_cnt = tcp_write_snd_buf(tcp,(uint8_t*)buf,len);
+    if(write_cnt<0){
+        return -2;
+    }else if(write_cnt == 0){
+        return NET_ERR_NEED_WAIT;
+    }else{
+        ret = tcp_send_data(tcp,NULL);
+        if(ret < 0){
+            return -3;
+        }
+    }
+    return write_cnt;
 }
 static int tcp_recv(struct _sock_t *s, void *buf, size_t len, int flags)
 {
+    tcp_t* tcp = (tcp_t*)s;
+    if(tcp->state!= TCP_STATE_ESTABLISHED && tcp->state != TCP_STATE_CLOSE_WAIT){
+        dbg_warning("tcp is closed,can not recv data\r\n");
+        return -1;
+    }
+    //rcv.nxt和rcv.win之间的数据全是已接收，但是用户未读取数据
+    int rcv_cnt = (int)(tcp->rcv.next - tcp->rcv.win);
+    if(rcv_cnt == 0){
+        return 0;
+    }
+    int cpy_cnt = rcv_cnt < len?rcv_cnt:len;
+
+    tcp_buf_read(&tcp->rcv.buf,buf,0,cpy_cnt);
+    //移动滑动窗口
+    tcp_buf_remove(&tcp->rcv.buf,cpy_cnt);
+    tcp_buf_expand(&tcp->rcv.buf,cpy_cnt);
+    tcp->rcv.win += cpy_cnt;
+    tcp_seq_remove(cpy_cnt);
+    return cpy_cnt;
+
 }
 static int tcp_listen(struct _sock_t *s, int backlog)
 {
@@ -352,4 +398,36 @@ void tcp_show(const tcp_parse_t *tcp)
     }
     dbg_info("-----------------------\r\n");
 #endif
+}
+
+int tcp_read_option(tcp_t* tcp,tcp_parse_t* recv_parse){
+    if(recv_parse->option_len <=0){
+        return -1;
+    }
+    uint8_t* options = recv_parse->options;
+    switch (options[0])
+    {
+    case TCP_OPTION_MSS:
+        if(options[1]!=recv_parse->option_len){
+            return -2;
+        }
+        uint16_t mss = *((uint16_t*)options +1);
+        mss= ntohs(mss);
+        ip_route_entry_t* entry = ip_route(&tcp->base.target_ip);
+        if(!entry) return -3;
+        if(entry->gateway.q_addr !=0){
+            //如果存在网关，那么
+            tcp->mss = TCP_DEFAULT_MSS;
+        }else{
+            tcp->mss = mss;
+        }
+
+        break;
+    case TCP_OPTION_END:
+    case TCP_OPTION_NOP:
+    default:
+        dbg_warning("unhandle \r\n");
+        break;
+    }
+    return 0;
 }

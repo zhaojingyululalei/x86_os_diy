@@ -77,6 +77,9 @@ int net_task_test(uint16_t x)
     return x + 10;
 }
 #define RECV_BUF_MAX_SIZE   1000
+#define MESSAGE_CNT 4096
+char message[MESSAGE_CNT];
+    
 int tcp_client_test(void)
 {
     int ret;
@@ -85,8 +88,13 @@ int tcp_client_test(void)
     const char* host_ip = "192.168.169.50";
     port_t host_port = 1500;
     port_t dest_port = 8080;
-    const char* message = "hello world\r\n";
 
+    //const char* message = "hello world\r\n";
+    message[MESSAGE_CNT-1]='\0';
+    for (int i = 0; i < MESSAGE_CNT-1; i++)
+    {
+        message[i] = 'a'+(i%26);
+    }
     /*code*/
     char recv_buf[RECV_BUF_MAX_SIZE] = {0};
     int sockfd = sys_socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
@@ -120,25 +128,26 @@ int tcp_client_test(void)
         dbg_info("connect fail\r\n");
         return;
     }
-    sys_closesocket(sockfd);
-    while (1)
-    {
-        sys_sleep_ms(1000);
-    }
+    // sys_closesocket(sockfd);
+    // while (1)
+    // {
+    //     sys_sleep_ms(1000);
+    // }
     
     int send_len = 0,recv_len = 0;
     while (1)
     {
         //send_len = sys_sendto(sockfd,message,strlen(message),0,&addr,sizeof(struct sockaddr_in));
-        // send_len = sys_send(sockfd,message,strlen(message),0);
+        // send_len = sys_send(sockfd,message,MESSAGE_CNT-1,0);
         // if(send_len < 0)
         // {
         //     dbg_info("send message fail\r\n");
+        //     break;
         // }
-        // dbg_info("send a message:%s\r\n",message);
-        socklen_t addr_len = sizeof(struct sockaddr_in);
-        struct sockaddr_in client_addr;
-        //recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
+        //dbg_info("send a message:%s\r\n",message);
+        // socklen_t addr_len = sizeof(struct sockaddr_in);
+        // struct sockaddr_in client_addr;
+        // //recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
         recv_len = sys_recv(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0);
         if(recv_len < 0)
         {
@@ -149,11 +158,13 @@ int tcp_client_test(void)
         }
         dbg_info("recv a message:%s\r\n",recv_buf);
         memset(recv_buf,0,recv_len);
-        sys_sleep_ms(2000);
+        // for(int i = 0;i<0xFFFF;++i){
+        //     ;
+        // }
     }
     
 
-    //sys_closesocket(sockfd);
+    sys_closesocket(sockfd);
     return 0;
 }
 void net_socket_test(void)

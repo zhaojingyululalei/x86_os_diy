@@ -49,10 +49,10 @@ int tcp_send_syn(tcp_t *tcp)
     parse.seq_num = tcp->snd.init_seq;
     parse.ack_num = tcp->rcv.init_seq;
     parse.syn = true;
-    parse.win_size = 1024;
+    parse.win_size = TCP_RCV_WIN_SIZE;
     parse.head_len = sizeof(tcp_head_t);
     tcp_set(package, &parse);
-    tcp->snd.next += parse.syn ;
+    tcp->snd.next += parse.syn;
     return tcp_send_out(package, &tcp->base.host_ip, &tcp->base.target_ip);
 }
 
@@ -68,13 +68,13 @@ int tcp_send_ack(tcp_t *tcp, tcp_parse_t *tcp_recv)
     parse.seq_num = tcp->snd.next;
     parse.ack_num = tcp->rcv.next;
     parse.ack = true;
-    parse.win_size = 1024;
+    parse.win_size = TCP_RCV_WIN_SIZE;
     parse.head_len = sizeof(tcp_head_t);
     tcp_set(package, &parse);
     return tcp_send_out(package, &tcp->base.host_ip, &tcp->base.target_ip);
 }
 
-int tcp_send_syn_ack(tcp_t* tcp,tcp_parse_t* tcp_recv)
+int tcp_send_syn_ack(tcp_t *tcp, tcp_parse_t *tcp_recv)
 {
     // 无选项字段
     pkg_t *package = package_alloc(sizeof(tcp_head_t));
@@ -87,13 +87,14 @@ int tcp_send_syn_ack(tcp_t* tcp,tcp_parse_t* tcp_recv)
     parse.ack_num = tcp->rcv.next;
     parse.syn = true;
     parse.ack = true;
-    parse.win_size = 1024;
+    parse.win_size = TCP_RCV_WIN_SIZE;
     parse.head_len = sizeof(tcp_head_t);
     tcp_set(package, &parse);
-    tcp->snd.next ++;
+    tcp->snd.next++;
     return tcp_send_out(package, &tcp->base.host_ip, &tcp->base.target_ip);
 }
-int tcp_send_fin(tcp_t* tcp){
+int tcp_send_fin(tcp_t *tcp)
+{
     pkg_t *package = package_alloc(sizeof(tcp_head_t));
     tcp_head_t *head = package_data(package, sizeof(tcp_head_t), 0);
     tcp_parse_t parse;
@@ -104,10 +105,55 @@ int tcp_send_fin(tcp_t* tcp){
     parse.ack_num = tcp->rcv.next;
     parse.fin = true;
     parse.ack = true;
-    parse.win_size = 1024;
+    parse.win_size = TCP_RCV_WIN_SIZE;
     parse.head_len = sizeof(tcp_head_t);
     tcp_set(package, &parse);
-    tcp->snd.next ++;
+    tcp->snd.next++;
 
     return tcp_send_out(package, &tcp->base.host_ip, &tcp->base.target_ip);
+}
+
+int tcp_send_data(tcp_t *tcp, tcp_flag_t *flag)
+{
+    int ret;
+    // 缓存里有多少数据发多少
+    int offset = (int)(tcp->snd.next - tcp->snd.unack);
+    int send_cnt = tcp->snd.buf.size - offset;
+    if(send_cnt < 0){
+        return -1;
+    }else if(send_cnt ==0){
+        return 0;
+    }
+    send_cnt = (send_cnt < tcp->mss) ? send_cnt:tcp->mss;
+    pkg_t *package = package_alloc(sizeof(tcp_head_t) + send_cnt);
+    tcp_head_t *head = package_data(package, sizeof(tcp_head_t), 0);
+    tcp_parse_t parse;
+    memset(&parse, 0, sizeof(tcp_parse_t));
+    parse.src_port = tcp->base.host_port;
+    parse.dest_port = tcp->base.target_port;
+    parse.seq_num = tcp->snd.next;
+    parse.ack_num = tcp->rcv.next;
+    parse.ack = true;
+    parse.win_size = TCP_RCV_WIN_SIZE;
+    parse.head_len = sizeof(tcp_head_t);
+    if (flag)
+    {
+        parse.urg = flag->urg;
+        parse.psh = flag->psh;
+        parse.rst = flag->rst;
+        parse.syn = flag->syn;
+        parse.fin = flag->fin;
+    }
+
+    tcp_set(package, &parse);
+
+    tcp_read_snd_buf(tcp, package, sizeof(tcp_head_t), offset,send_cnt);
+
+    ret = tcp_send_out(package, &tcp->base.host_ip, &tcp->base.target_ip);
+    if(ret < 0){
+        package_collect(package);
+        return ret;
+    }
+    tcp->snd.next += (send_cnt + parse.fin);
+    return 0;
 }

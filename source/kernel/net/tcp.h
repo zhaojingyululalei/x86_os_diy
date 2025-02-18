@@ -5,6 +5,10 @@
 #define TCP_BUF_MAX_NR 50
 #define TCP_DEFAULT_PROTOCAL    IPPROTO_TCP
 #define TCP_HASH_SIZE 128
+#define TCP_SND_BUF_MAX_SIZE 2048
+#define TCP_RCV_BUF_MAX_SIZE 2048
+#define TCP_SND_WIN_SIZE  1024
+#define TCP_RCV_WIN_SIZE  1024  
 
 #define TCP_FIN_POS (1<<0)
 #define TCP_SYN_POS (1<<1)
@@ -12,6 +16,12 @@
 #define TCP_PSH_POS (1<<3)
 #define TCP_ACK_POS (1<<4)
 #define TCP_URG_POS (1<<5)
+
+#define TCP_OPTION_END  0
+#define TCP_OPTION_NOP  1
+#define TCP_OPTION_MSS  2
+
+#define TCP_DEFAULT_MSS 536
 
 
 typedef struct _tcp_data_t
@@ -22,6 +32,14 @@ typedef struct _tcp_data_t
     ipaddr_t host_ip;
     port_t host_port;
 }tcp_data_t;
+
+typedef struct _tcp_buf_t{
+    uint8_t* data;
+    int capacity;
+    int size;
+    int tail;
+    int head;
+}tcp_buf_t;
 
 typedef enum _tcp_state_t{
     TCP_STATE_CLOSED,
@@ -46,12 +64,16 @@ typedef enum _tcp_in_pkg_type_t{
 
 typedef struct _tcp_t {
     sock_t base;
-    
+    int mss;
     tcp_state_t state;
     struct 
     {
         uint32_t init_seq;
         uint32_t next;
+        uint32_t win_size;
+        uint32_t win;
+        uint8_t data_buf[TCP_RCV_BUF_MAX_SIZE];
+        tcp_buf_t buf;
         //sock_wait_t wait;
     }rcv;
 
@@ -61,7 +83,8 @@ typedef struct _tcp_t {
         uint32_t unack;//已发送，但未确认的数据
         uint32_t next;//下一次要发送的数据
         uint32_t win_size;
-
+        uint8_t data_buf[TCP_SND_BUF_MAX_SIZE];
+        tcp_buf_t buf;
         //sock_wait_t wait;
     }snd;
     sock_wait_t close_wait;
@@ -82,7 +105,13 @@ typedef struct _tcp_head_t{
     uint16_t urg_ptr;
 }tcp_head_t;//注：还有个32位选项，可能有或没有
 #pragma pack()
-
+typedef struct _tcp_flag_t{
+    bool urg;
+    bool psh;
+    bool rst;
+    bool syn;
+    bool fin;
+}tcp_flag_t;
 typedef struct _tcp_parse_t{
     port_t src_port;
     port_t dest_port;
@@ -107,7 +136,11 @@ typedef struct _tcp_hash_entry_t{
     list_t value_list;
 }tcp_hash_entry_t;
 
-
+typedef struct _tcp_seq_t{
+    uint32_t seq_num;
+    int len;
+    list_node_t node;
+}tcp_seq_t;
 extern list_t tcp_list;
 typedef int (*tcp_in_handle)(tcp_t* tcp,pkg_t* package,tcp_parse_t* parse,ipaddr_t* remote,ipaddr_t* host);
 #define DEFINE_TCP_IN_HANDLE(name)            int name(tcp_t* tcp,pkg_t* package,tcp_parse_t* parse,ipaddr_t* remote,ipaddr_t* host)
@@ -121,6 +154,7 @@ void tcp_free(tcp_t *tcp);
 
 /*输入*/
 int tcp_in(pkg_t* package,ipaddr_t* remote_ip,ipaddr_t* host_ip);
+int tcp_read_option(tcp_t* tcp,tcp_parse_t* recv_parse);
 
 /*输出*/
 int tcp_send_reset(tcp_parse_t* tcp_recv,ipaddr_t* src,ipaddr_t* dest);
@@ -128,6 +162,7 @@ int tcp_send_syn(tcp_t *tcp);
 int tcp_send_ack(tcp_t *tcp, tcp_parse_t *tcp_recv);
 int tcp_send_syn_ack(tcp_t* tcp,tcp_parse_t* tcp_recv);
 int tcp_send_fin(tcp_t* tcp);
+int tcp_send_data(tcp_t* tcp,tcp_flag_t *flag);
 /*状态机*/
 char* tcp_state_name(tcp_state_t state);
 void tcp_set_state(tcp_t* tcp,tcp_state_t state);
@@ -140,7 +175,31 @@ void hash_insert_tcp_connection(tcp_t *tcp);
 void hash_delete_tcp_connection(tcp_t *tcp);
 void tcp_hash_table_print() ;
 
+/*tcp_buf*/
+int tcp_buf_is_full(tcp_buf_t* buf);
+int tcp_buf_is_empty(tcp_buf_t* buf);
+int tcp_buf_insert(tcp_buf_t* buf, uint8_t* data, int data_size);
+int tcp_buf_remove(tcp_buf_t* buf,int max_size) ;
+int tcp_buf_expand(tcp_buf_t *buf, int len);
+int tcp_buf_read(tcp_buf_t* buf,uint8_t* out_data,int offset,int len);
+int tcp_buf_write(tcp_buf_t* buf,int offset,int data_len,uint8_t* data);
 
+void tcp_buf_print(tcp_buf_t* buf);
+void tcp_buf_free(tcp_buf_t* buf);
+void tcp_buf_init(tcp_buf_t* buf, uint8_t *data,int capacity);
+
+int tcp_write_snd_buf(tcp_t* tcp,const uint8_t* data,int len);
+int tcp_read_snd_buf(tcp_t* tcp,pkg_t* tcp_pkg,int pkg_offset,int buf_offset,int len);
+int tcp_write_rcv_buf(tcp_t *tcp, int offset, const uint8_t *data, int data_len);
+
+/*seq*/
+void tcp_seq_init(void);
+tcp_seq_t* tcp_seq_alloc(void);
+void tcp_seq_free(tcp_seq_t* seq);
+int seq_compare(uint32_t a,uint32_t b);
+int seq_check(tcp_t* tcp,tcp_parse_t* recv_parse,pkg_t* recv_pkg);
+int seq_handle(tcp_t *tcp, tcp_parse_t *recv_parse, pkg_t *recv_pkg);
+int tcp_seq_remove(int size);
 /*dbg*/
 // TCP 报文信息打印函数
 void tcp_show(const tcp_parse_t* tcp);
