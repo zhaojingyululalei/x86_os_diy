@@ -66,4 +66,15 @@ typedef struct _sock_bind_param_t
     const struct sockaddr *addr;
     socklen_t addrlen;
 } sock_bind_param_t;
+typedef struct _sock_listen_param_t
+{
+    int sockfd;
+    int backlog;
+} sock_listen_param_t;
+typedef struct _sock_accept_param_t
+{
+    int sockfd;
+    struct sockaddr *addr;
+    socklen_t *len;
+} sock_accept_param_t;
 #endif

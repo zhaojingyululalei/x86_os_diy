@@ -87,7 +87,7 @@ int tcp_client_test(void)
     const char *dest_ip = "192.168.169.40";
     const char *host_ip = "192.168.169.50";
     port_t host_port = 1500;
-    port_t dest_port = 8080;
+    port_t dest_port = 5000;
 
     const char* message = "hello world\r\n";
     // message[MESSAGE_CNT - 1] = '\0';

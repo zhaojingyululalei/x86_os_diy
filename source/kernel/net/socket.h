@@ -88,4 +88,5 @@ int sys_send(int sockfd, const void *buf, size_t len, int flags);
 int sys_recv(int sockfd, void *buf, size_t len, int flags);
 int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int sys_closesocket(int sockfd);
+int sys_listen(int sockfd,int backlog);
 #endif

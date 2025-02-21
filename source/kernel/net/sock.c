@@ -9,6 +9,7 @@
 
 #define SOCKET_MAX_NR    (TCP_BUF_MAX_NR + UDP_BUF_MAX_NR + RAW_MAX_NR)
 /*工作线程所要执行的函数*/
+
 static socket_t socket_tbl[SOCKET_MAX_NR] = {0};
 
 int socket_get_index(socket_t *s)
@@ -75,6 +76,7 @@ int sock_create(void *arg)
         return -1;
     }
     socket_t *s = socket_alloc();
+    s->sock->type = param->type;
     if (!s)
     {
         dbg_error("socket pool out of memory\r\n");
@@ -280,6 +282,51 @@ int sock_bind(void*arg)
     return sock->ops->bind(sock,param->addr,param->addrlen);
 }
 
+int sock_listen(void* arg){
+    sock_listen_param_t* param = (sock_listen_param_t *)arg;
+    if (param->sockfd < 0)
+    {
+        dbg_error("sockfd wrong\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+
+    return sock->ops->listen(sock,param->backlog);
+}
+
+int sock_accept(void* arg){
+    sock_accept_param_t* param = (sock_accept_param_t *)arg;
+    if (param->sockfd < 0)
+    {
+        dbg_error("sockfd wrong\r\n");
+        return -1;
+    }
+    socket_t *socket = socket_from_index(param->sockfd);
+    if (!socket)
+    {
+        dbg_error("invalid sockfd\r\n");
+        return -1;
+    }
+    sock_t *sock = socket->sock;
+    if (!sock)
+    {
+        dbg_error("socket create error,socket->sock is null\r\n");
+        return -2;
+    }
+
+    return sock->ops->accept(sock,param->addr,param->len);
+}
 void sock_wait_init(sock_wait_t *wait)
 {
 

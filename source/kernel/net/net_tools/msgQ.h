@@ -14,6 +14,7 @@ typedef struct _msgQ_t{
     int size;            // 当前队列大小
 
 }msgQ_t;
+typedef msgQ_t queue_t;
 
 int msgQ_init(msgQ_t* mq,void** q,int capacity);
 int msgQ_destory(msgQ_t* mq);

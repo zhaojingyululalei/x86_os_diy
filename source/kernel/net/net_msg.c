@@ -16,12 +16,14 @@ net_msg_t *net_msg_create(netif_t *netif, net_msg_type_t type, void *data)
 {
     if (!data)
     {
+        dbg_error("data is null\r\n");
         return NULL;
     }
     net_msg_t *message = (net_msg_t *)mempool_alloc_blk(&net_msg_pool, -1);
     if (!message)
     {
         // 暂时没有空闲消息块可供使用
+        dbg_error("out of memory\r\n");
         return NULL;
     }
     switch (type)

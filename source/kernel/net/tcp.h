@@ -3,6 +3,7 @@
 #include "sock.h"
 #include "net_tools/package.h"
 #include "net_tools/soft_timer.h"
+#include "net_tools/msgQ.h"
 #define TCP_BUF_MAX_NR 50
 #define TCP_DEFAULT_PROTOCAL    IPPROTO_TCP
 #define TCP_HASH_SIZE 128
@@ -10,6 +11,8 @@
 #define TCP_RCV_BUF_MAX_SIZE 2048
 #define TCP_SND_WIN_SIZE  1024
 #define TCP_RCV_WIN_SIZE  1024  
+
+#define TCP_CONN_QUEUE_MAX_SIZE 128
 
 #define TCP_FIN_POS (1<<0)
 #define TCP_SYN_POS (1<<1)
@@ -28,6 +31,7 @@
 #define TCP_KEEP_INTV_DEFAULT   1
 #define TCP_KEEP_RETRY_DEFAULT    10
 
+#define TCP_TIME_WAIT_MSL   60
 
 typedef struct _tcp_data_t
 {
@@ -60,7 +64,7 @@ typedef enum _tcp_state_t{
     TCP_STATE_LAST_ACK,
 
     TCP_STATE_MAX,
-}tcp_state_t;
+}tcp_state_t;tcp_acce
 
 typedef enum _tcp_in_pkg_type_t{
     TCP_PKG_TYPE_SYN_ACK, //收到这种类型数据包，只能遍历链表找符合条件的tcp结构
@@ -95,14 +99,23 @@ typedef struct _tcp_t {
 
     struct
     {
+        //链接的保活配置
         bool k_enable;
         int k_idle;
         int k_intv;
         int k_retry;
         int k_count;
         soft_timer_t timer;
+
+        //全连接队列和半链接队列（listen & accept）
+        int backlog;
+        struct _tcp_t* listen_tcp;
+        struct _tcp_t* cmplt_conn_buf[TCP_CONN_QUEUE_MAX_SIZE];
+        queue_t cmplt_conn_q;
+
     }conn;
-    
+    soft_timer_t time_wait_timer;
+
     sock_wait_t close_wait;
     list_node_t hash_node;
     list_node_t node;
@@ -222,6 +235,14 @@ int tcp_seq_remove(int size);
 /**keep_alive */
 int tcp_keepalive_start(tcp_t* tcp);
 int tcp_keepalive_restart(tcp_t* tcp);
+
+/**conn */
+int tcp_init_connect(tcp_t *tcp);
+int tcp_connQ_init(tcp_t* tcp);
+tcp_t* create_client_tcp(tcp_parse_t *recv_parse, tcp_t *listen_tcp);
+int tcp_connQ_enqueue(tcp_t* client_tcp,tcp_t* listen_tcp);
+/**由accpect调用 */
+tcp_t* tcp_connQ_dequeue(tcp_t* listen_tcp);
 /*dbg*/
 // TCP 报文信息打印函数
 void tcp_show(const tcp_parse_t* tcp);

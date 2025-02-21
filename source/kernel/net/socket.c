@@ -286,3 +286,44 @@ int sys_closesocket(int sockfd)
     }
     return ret;
 }
+
+int sys_listen(int sockfd, int backlog)
+{
+    sock_listen_param_t param;
+    param.sockfd = sockfd;
+    param.backlog = backlog;
+
+    int ret;
+    ret = net_task_submit(sock_listen, &param);
+    return ret;
+}
+
+int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *len)
+{
+    sock_accept_param_t param;
+    param.sockfd = sockfd;
+    param.addr = addr;
+    param.len = len;
+
+    int ret;
+    sock_t *sock = socket_from_index(sockfd)->sock;
+    tcp_t *tcp = (tcp_t *)sock;
+    while (1)
+    {
+        ret = sock_wait_enter(&tcp->close_wait);
+        if (ret < 0)
+        {
+            if (ret == NET_ERR_CLOSE)
+            {
+                return 0;
+            }
+            else
+            {
+                return ret;
+            }
+        }
+        ret = net_task_submit(sock_accept, &param);
+    }
+
+    return ret;
+}

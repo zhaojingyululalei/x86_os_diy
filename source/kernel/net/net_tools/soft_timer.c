@@ -175,6 +175,6 @@ int soft_timer_get_first_time(void)
         return timer->cur;
     }
     else{
-        return 0;
+        return -1;
     }
 }

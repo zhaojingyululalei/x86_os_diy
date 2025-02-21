@@ -21,7 +21,7 @@ typedef struct _sock_ops_t
 	int(*send)(struct _sock_t* s, const void* buf, size_t len, int flags);
 	int(*recv)(struct _sock_t* s, void* buf, size_t len, int flags);
     int (*listen) (struct _sock_t *s, int backlog);
-    int (*accept)(struct _sock_t *s, struct  sockaddr* addr,  socklen_t* len, struct _sock_t ** client);
+    int (*accept)(struct _sock_t *s, struct  sockaddr* addr,  socklen_t* len);
     void (*destroy)(struct _sock_t *s);
 }sock_ops_t;
 
@@ -52,6 +52,7 @@ typedef struct _sock_t
 
     int family;
     int protocal;
+    int type;
 
     int wait_flag;
     sock_wait_t send_wait;
@@ -87,5 +88,6 @@ int sock_connect(void* arg);
 int sock_send(void* arg);
 int sock_recv(void* arg);
 int sock_bind(void*arg);
-
+int sock_listen(void* arg);
+int sock_accept(void* arg);
 #endif

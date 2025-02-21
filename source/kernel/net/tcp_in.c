@@ -2,6 +2,11 @@
 #include "net_tools/package.h"
 #include "ipaddr.h"
 #include "port.h"
+static void* do_timewait_handle(void*arg){
+    tcp_t* tcp = (tcp_t*)arg;
+    tcp_free(tcp);
+    return NULL;
+};
 static int tcp_ack_handle(tcp_t *tcp, tcp_parse_t *recv_parse)
 {
     // 首先判断ACK的值对不对
@@ -47,7 +52,7 @@ static int tcp_data_handle(tcp_t *tcp, pkg_t *package, tcp_parse_t *recv_parse)
     {
         // 向缓存里面存数据
         // 返回值不需要处理，没写到缓存里就没写到
-        seq_handle(tcp,recv_parse,package);
+        seq_handle(tcp, recv_parse, package);
     }
     if (tcp->rcv.next > tcp->rcv.win)
     {
@@ -63,7 +68,7 @@ static int tcp_data_handle(tcp_t *tcp, pkg_t *package, tcp_parse_t *recv_parse)
             sock_wait_notify(&tcp->base.conn_wait, NET_ERR_CLOSE);
             sock_wait_notify(&tcp->base.recv_wait, NET_ERR_CLOSE);
             sock_wait_notify(&tcp->base.send_wait, NET_ERR_CLOSE);
-            //回应fin帧的ack
+            // 回应fin帧的ack
             tcp_send_ack(tcp, recv_parse);
         }
         else
@@ -89,9 +94,124 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_closed)
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_listen)
 {
+
+    // 如果对方直接返回rst报文，拒绝连接
+    if (parse->rst)
+    {
+        if (parse->ack)
+        {
+            // 如果有ack标志，才是真正的发给我的rst报文
+            TCP_DBG_PRINT("recv rst\r\n");
+            tcp_reset(tcp, NET_ERR_RECV_RST);
+        }
+        // 没有ack，就是不合规范的rst报文,选择无视该报文
+    }
+
+    // 收到syn包
+    if (parse->syn)
+    {
+        //新创建一个tcp结构
+        tcp_t* client_tcp = create_client_tcp(parse, tcp);
+        if(!client_tcp){
+            dbg_error("listen state:client tcp create fail\r\n");
+        }
+
+        // 更新rcv
+        client_tcp->rcv.init_seq = parse->seq_num;
+        client_tcp->rcv.win = tcp->rcv.next = tcp->rcv.init_seq + 1;
+        client_tcp->conn.listen_tcp = tcp;
+
+        
+        // 发送syn+ack包
+        tcp_send_syn_ack(client_tcp, parse);
+        //注：listen_fd一直处于监听状态,监听各种客户端的链接
+        tcp_set_state(client_tcp, TCP_STATE_SYN_SEND);
+    }
+    else
+    {
+        /*该状态下只能收到syn包*/
+        dbg_warning("listen state err:recv a pkg not syn\r\n");
+        return -1;
+    }
+
+    package_collect(package);
+
     return 0;
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_send)
+{
+    int ret;
+    /*因为都是无符号数，可能会出现循环的情况，所以处理的复杂点*/
+    if ((int)(parse->ack_num - tcp->snd.init_seq) <= 0 || (int)(parse->ack_num - tcp->snd.next) > 0)
+    {
+        TCP_DBG_PRINT("ack err\r\n");
+        tcp_send_reset(parse, host, remote);
+        return -1;
+    }
+
+    // 如果对方直接返回rst报文，拒绝连接
+    if (parse->rst)
+    {
+        if (parse->ack)
+        {
+            // 如果有ack标志，才是真正的发给我的rst报文
+            TCP_DBG_PRINT("recv rst\r\n");
+            tcp_reset(tcp, NET_ERR_RECV_RST);
+        }
+        // 没有ack，就是不合规范的rst报文,选择无视该报文
+    }
+
+    /*注：该阶段可能出现只收到ack，只收到syn，同时收到syn+ack三种情况 */
+
+    if (parse->ack)
+    {
+        tcp->snd.unack++;
+    }
+
+    if (parse->syn)
+    {
+        tcp->rcv.init_seq = parse->seq_num;
+        tcp->rcv.win = tcp->rcv.next = tcp->rcv.init_seq + 1;
+        // 同时收到syn+ack，
+        if (parse->ack)
+        {
+
+            // 读取一下mss选项
+            tcp_read_option(tcp, parse);
+
+            // 如果收到的是syn+ack，tcp三次握手建立连接
+            tcp_send_ack(tcp, parse);
+            hash_insert_tcp_connection(tcp); // 建立四元组，插入hash表
+            tcp->state = TCP_STATE_ESTABLISHED;
+            sock_wait_notify(&tcp->base.conn_wait, NET_ERR_OK);
+        }
+        else // 只收到了syn
+        {
+            // 如果是同时打开，即，4次握手
+            tcp->state = TCP_STATE_SYN_RECVD;
+            tcp_send_syn_ack(tcp, parse);
+        }
+    }
+    else
+    {
+        // 只收到ack
+        if (parse->ack)
+        {
+            hash_insert_tcp_connection(tcp); // 建立四元组，插入hash表
+            ret = tcp_connQ_enqueue(tcp,tcp->conn.listen_tcp);
+            if(ret < 0){
+                //backlog队列满了，没入队成功
+                tcp_free(tcp);
+            }
+            tcp->state = TCP_STATE_ESTABLISHED;
+            sock_wait_notify(&tcp->base.conn_wait, NET_ERR_OK);
+        }
+    }
+
+    package_collect(package);
+    return 0;
+}
+DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_recvd)
 {
     /*因为都是无符号数，可能会出现循环的情况，所以处理的复杂点*/
     if ((int)(parse->ack_num - tcp->snd.init_seq) <= 0 || (int)(parse->ack_num - tcp->snd.next) > 0)
@@ -113,23 +233,21 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_send)
         // 没有ack，就是不合规范的rst报文,选择无视该报文
     }
 
+    /*注：该阶段只能收到syn+ack*/
     if (parse->syn)
     {
         tcp->rcv.init_seq = parse->seq_num;
-
         tcp->rcv.win = tcp->rcv.next = tcp->rcv.init_seq + 1;
-        if (parse->ack)
-        { // 想让我从哪里开始发
-            tcp->snd.unack++;
-        }
 
         if (parse->ack)
         {
+            tcp->snd.unack++;
             // 收到syn+ack，读取一下mss选项
             tcp_read_option(tcp, parse);
 
             // 如果收到的是syn+ack，tcp三次握手建立连接
             tcp_send_ack(tcp, parse);
+            hash_insert_tcp_connection(tcp); // 建立四元组，插入hash表
             tcp->state = TCP_STATE_ESTABLISHED;
             sock_wait_notify(&tcp->base.conn_wait, NET_ERR_OK);
         }
@@ -142,10 +260,6 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_send)
     }
 
     package_collect(package);
-    return 0;
-}
-DEFINE_TCP_IN_HANDLE(tcp_in_handle_sys_recvd)
-{
     return 0;
 }
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_established)
@@ -299,6 +413,7 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_closing)
     }
     return 0;
 }
+
 DEFINE_TCP_IN_HANDLE(tcp_in_handle_time_wait)
 {
     // 在已经建立连接的情况下，又收到了syn报文
@@ -331,6 +446,9 @@ DEFINE_TCP_IN_HANDLE(tcp_in_handle_time_wait)
         tcp_time_wait(tcp);
     }
 
+    //添加定时器，过一段时间释放
+    soft_timer_add(&tcp->time_wait_timer,SOFT_TIMER_TYPE_ONCE,TCP_TIME_WAIT_MSL*2*1000,
+                    "timewait",do_timewait_handle,tcp,NULL);
     package_collect(package);
     return 0;
 }
@@ -458,6 +576,7 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
     tcp = find_tcp_connection(host_ip->q_addr, host_port, remote_ip->q_addr, remote_port);
     if (tcp)
     {
+        tcp_keepalive_restart(tcp); // 收到一个报文就重新开始
         tcp_in_handle_tbl[tcp->state](tcp, package, &parse, remote_ip, host_ip);
         return 0;
     }
@@ -467,7 +586,7 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
     if (parse.syn && !parse.ack)
     {
         list_node_t *cur = tcp_list.first;
-        // 这里得用一些分配算法，暂时把包分给所有sockfd，应该只选定一个的
+        // 找到第一个处于listen态的tcp就结束，只选定一个
         while (cur)
         {
             tcp_t *tcpx = list_node_parent(cur, tcp_t, node);
@@ -475,13 +594,14 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
             if ((tcpx->base.target_ip.q_addr == 0) &&
                 tcpx->base.host_ip.q_addr == host_ip->q_addr &&
                 (tcpx->base.target_port == 0) &&
-                tcpx->base.host_port == host_port)
+                tcpx->base.host_port == host_port && tcpx->state == TCP_STATE_LISTEN)
             {
                 tcp = tcpx;
                 // 到这里，就算是交给应用了，无论执行成功与否，都会由应用程序释放该包。
                 pkg_t *pkg_cpy = package_clone(package);
-                tcp_keepalive_restart(tcp);//收到一个报文就重新开始
+                tcp_keepalive_restart(tcp); // 收到一个报文就重新开始
                 tcp_in_handle_tbl[tcp->state](tcp, pkg_cpy, &parse, remote_ip, host_ip);
+                break;
             }
             cur = cur->next;
         }
@@ -498,7 +618,7 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
             return -3;
         }
         // 找到合适的tcp后，根据tcp状态调用不同的函数处理数据包
-        tcp_keepalive_restart(tcp);//收到一个报文就重新开始
+        tcp_keepalive_restart(tcp); // 收到一个报文就重新开始
         tcp_in_handle_tbl[tcp->state](tcp, package, &parse, remote_ip, host_ip);
     }
 

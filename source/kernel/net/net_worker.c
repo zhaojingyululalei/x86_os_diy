@@ -73,6 +73,7 @@ static void handle(void)
             break;
         case NET_MSG_TYPE_NET_FUNC:
             do_net_func(msg->task);
+            net_msg_free(msg);
             break;
         default:
             dbg_error("unkown msg type\r\n");

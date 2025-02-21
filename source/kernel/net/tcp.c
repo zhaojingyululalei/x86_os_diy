@@ -29,19 +29,19 @@ static int tcp_setsockopt(struct _sock_t *s, int level, int optname, const char 
     {
     case SOL_SOCKET:
 
-        if (optname & SO_RCVTIMEO)
+        if (optname == SO_RCVTIMEO)
         {
             struct timeval *time = (struct timeval *)optval;
             int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
             sock_wait_set(s, tmo, SOCK_RECV_WAIT);
         }
-        if (optname & SO_SNDTIMEO)
+        if (optname == SO_SNDTIMEO)
         {
             struct timeval *time = (struct timeval *)optval;
             int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
             sock_wait_set(s, tmo, SOCK_SEND_WAIT);
         }
-        if(optname & SO_KEEPALIVE){
+        if(optname == SO_KEEPALIVE){
             tcp->conn.k_enable = *(optval);
             tcp->conn.k_count = 0;
             tcp->conn.k_retry = TCP_KEEP_RETRY_DEFAULT;
@@ -49,19 +49,21 @@ static int tcp_setsockopt(struct _sock_t *s, int level, int optname, const char 
             tcp->conn.k_intv = TCP_KEEP_INTV_DEFAULT;
             tcp_keepalive_start(tcp);
         }
+        break;
     case SOL_TCP:
-        if(optname & TCP_KEEPIDLE){
+        if(optname == TCP_KEEPIDLE){
             tcp->conn.k_idle = *(optval);
             tcp_keepalive_restart(tcp);
         }
-        if(optname & TCP_KEEPINTVL){
+        if(optname == TCP_KEEPINTVL){
             tcp->conn.k_intv = *(optval);
             tcp_keepalive_restart(tcp);
         }
-        if(optname & TCP_KEEPCNT){
+        if(optname ==TCP_KEEPCNT){
             tcp->conn.k_retry = *(optval);
             tcp_keepalive_restart(tcp);
         }
+        break;
     default:
         dbg_error("unkown setsockopt optname\r\n");
         return -1;
@@ -70,6 +72,27 @@ static int tcp_setsockopt(struct _sock_t *s, int level, int optname, const char 
 }
 static int tcp_bind(struct _sock_t *s, const struct sockaddr *addr, socklen_t len)
 {
+    if(s->family!=addr->sa_family)
+    {
+        dbg_warning("famliy not match\r\n");
+        return -1;
+    }
+    const struct sockaddr_in* host = (const struct sockaddr_in*)addr;
+    s->host_ip.q_addr = host->sin_addr.s_addr;
+    s->host_port = ntohs(host->sin_port);
+
+    //检查端口是否被占用，如果没占用就开启端口
+    if(!net_port_is_free(s->host_port))
+    {
+        dbg_warning("bind port wrong,port is used\r\n");
+        return -1;
+    }
+    else
+    {
+        net_port_use(s->host_port);
+    }
+
+    return 0;
 }
 
 static uint32_t tcp_alloc_iss(void)
@@ -77,7 +100,8 @@ static uint32_t tcp_alloc_iss(void)
     uint32_t timeseed = get_time_seed();
     return random(timeseed);
 }
-static int tcp_init_connect(tcp_t *tcp)
+/**初始化发送和接受缓冲区，以及tcp有序性处理的相关结构 */
+int tcp_init_connect(tcp_t *tcp)
 {
 
     tcp->snd.init_seq = tcp_alloc_iss();
@@ -103,6 +127,7 @@ static int tcp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t
         return -3;
     }
 
+    //先查看路由，看看想要连接的目标能不能通
     ip_route_entry_t *entry = ip_route(&s->target_ip);
     if (!entry)
     {
@@ -214,9 +239,37 @@ static int tcp_recv(struct _sock_t *s, void *buf, size_t len, int flags)
 }
 static int tcp_listen(struct _sock_t *s, int backlog)
 {
+    int ret;
+    tcp_t* tcp = (tcp_t*)s;
+    tcp->conn.backlog = backlog;
+    //初始化全连接和半链接队列
+    ret = tcp_connQ_init(tcp);
+    if(ret < 0){
+        dbg_error("listen queue init fail\r\n");
+        return -1;
+    }
+
+    //初始化发送和接受缓冲区
+    tcp_init_connect(tcp);
+
+
+
+    tcp_set_state(tcp,TCP_STATE_LISTEN);
+    return 0;
 }
 static int tcp_accept(struct _sock_t *s, struct sockaddr *addr, socklen_t *len, struct _sock_t **client)
 {
+    tcp_t* tcp = (tcp_t*)s;
+    tcp_t* client_tcp = tcp_connQ_dequeue(tcp);
+    if(!client_tcp){
+        dbg_error("accpt fail\r\n");
+        return -1;
+    }
+    struct sockaddr_in* xaddr = (struct sockaddr_in*)addr;
+    xaddr->sin_port = client_tcp->base.target_port;
+    xaddr->sin_addr.s_addr = client_tcp->base.target_ip.q_addr;
+    len = sizeof(struct sockaddr);
+    return socket_get_index(tcp);
 }
 static void tcp_destroy(struct _sock_t *s)
 {
@@ -279,6 +332,9 @@ void tcp_free(tcp_t *tcp)
     sock_wait_destory(&tcp->close_wait);
     list_remove(&tcp_list,&tcp->node);
     hash_delete_tcp_connection(tcp);
+    if(tcp->state == TCP_STATE_LISTEN){
+        msgQ_destory(&tcp->conn.cmplt_conn_q);
+    }
     memset(tcp,0,sizeof(tcp_t));
     mempool_free_blk(&tcp_pool, tcp);
 }
@@ -321,8 +377,7 @@ sock_t *tcp_create(int family, int protocol)
     int proto = protocol == 0 ? TCP_DEFAULT_PROTOCAL : protocol;
     sock_init((sock_t *)tcp, family, proto, &tcp_ops);
 
-    // sock_wait_init(&tcp->snd.wait);
-    // sock_wait_init(&tcp->rcv.wait);
+    
     sock_wait_init(&tcp->close_wait);
 
     list_insert_last(&tcp_list, &tcp->node);
