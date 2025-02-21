@@ -2,6 +2,7 @@
 #define __TCP_H
 #include "sock.h"
 #include "net_tools/package.h"
+#include "net_tools/soft_timer.h"
 #define TCP_BUF_MAX_NR 50
 #define TCP_DEFAULT_PROTOCAL    IPPROTO_TCP
 #define TCP_HASH_SIZE 128
@@ -22,6 +23,10 @@
 #define TCP_OPTION_MSS  2
 
 #define TCP_DEFAULT_MSS 536
+
+#define TCP_KEEP_IDLE_DEFAULT   5
+#define TCP_KEEP_INTV_DEFAULT   1
+#define TCP_KEEP_RETRY_DEFAULT    10
 
 
 typedef struct _tcp_data_t
@@ -87,6 +92,17 @@ typedef struct _tcp_t {
         tcp_buf_t buf;
         //sock_wait_t wait;
     }snd;
+
+    struct
+    {
+        bool k_enable;
+        int k_idle;
+        int k_intv;
+        int k_retry;
+        int k_count;
+        soft_timer_t timer;
+    }conn;
+    
     sock_wait_t close_wait;
     list_node_t hash_node;
     list_node_t node;
@@ -157,12 +173,14 @@ int tcp_in(pkg_t* package,ipaddr_t* remote_ip,ipaddr_t* host_ip);
 int tcp_read_option(tcp_t* tcp,tcp_parse_t* recv_parse);
 
 /*输出*/
+int tcp_send_out(pkg_t *package, ipaddr_t *src, ipaddr_t *dest);
 int tcp_send_reset(tcp_parse_t* tcp_recv,ipaddr_t* src,ipaddr_t* dest);
 int tcp_send_syn(tcp_t *tcp);
 int tcp_send_ack(tcp_t *tcp, tcp_parse_t *tcp_recv);
 int tcp_send_syn_ack(tcp_t* tcp,tcp_parse_t* tcp_recv);
 int tcp_send_fin(tcp_t* tcp);
 int tcp_send_data(tcp_t* tcp,tcp_flag_t *flag);
+int tcp_send_keepalive(tcp_t* tcp);
 /*状态机*/
 char* tcp_state_name(tcp_state_t state);
 void tcp_set_state(tcp_t* tcp,tcp_state_t state);
@@ -200,6 +218,10 @@ int seq_compare(uint32_t a,uint32_t b);
 int seq_check(tcp_t* tcp,tcp_parse_t* recv_parse,pkg_t* recv_pkg);
 int seq_handle(tcp_t *tcp, tcp_parse_t *recv_parse, pkg_t *recv_pkg);
 int tcp_seq_remove(int size);
+
+/**keep_alive */
+int tcp_keepalive_start(tcp_t* tcp);
+int tcp_keepalive_restart(tcp_t* tcp);
 /*dbg*/
 // TCP 报文信息打印函数
 void tcp_show(const tcp_parse_t* tcp);

@@ -480,6 +480,7 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
                 tcp = tcpx;
                 // 到这里，就算是交给应用了，无论执行成功与否，都会由应用程序释放该包。
                 pkg_t *pkg_cpy = package_clone(package);
+                tcp_keepalive_restart(tcp);//收到一个报文就重新开始
                 tcp_in_handle_tbl[tcp->state](tcp, pkg_cpy, &parse, remote_ip, host_ip);
             }
             cur = cur->next;
@@ -497,6 +498,7 @@ int tcp_in(pkg_t *package, ipaddr_t *remote_ip, ipaddr_t *host_ip)
             return -3;
         }
         // 找到合适的tcp后，根据tcp状态调用不同的函数处理数据包
+        tcp_keepalive_restart(tcp);//收到一个报文就重新开始
         tcp_in_handle_tbl[tcp->state](tcp, package, &parse, remote_ip, host_ip);
     }
 

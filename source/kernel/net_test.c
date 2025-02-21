@@ -76,40 +76,47 @@ int net_task_test(uint16_t x)
 {
     return x + 10;
 }
-#define RECV_BUF_MAX_SIZE   1000
-#define MESSAGE_CNT 4096
-char message[MESSAGE_CNT];
-    
+#define RECV_BUF_MAX_SIZE 2000
+// #define MESSAGE_CNT 15
+// char message[MESSAGE_CNT];
+
 int tcp_client_test(void)
 {
     int ret;
     /*config*/
-    const char* dest_ip = "192.168.169.40";
-    const char* host_ip = "192.168.169.50";
+    const char *dest_ip = "192.168.169.40";
+    const char *host_ip = "192.168.169.50";
     port_t host_port = 1500;
     port_t dest_port = 8080;
 
-    //const char* message = "hello world\r\n";
-    message[MESSAGE_CNT-1]='\0';
-    for (int i = 0; i < MESSAGE_CNT-1; i++)
-    {
-        message[i] = 'a'+(i%26);
-    }
+    const char* message = "hello world\r\n";
+    // message[MESSAGE_CNT - 1] = '\0';
+    // for (int i = 0; i < MESSAGE_CNT - 1; i++)
+    // {
+    //     message[i] = 'a' + (i % 26);
+    // }
     /*code*/
     char recv_buf[RECV_BUF_MAX_SIZE] = {0};
-    int sockfd = sys_socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    if(sockfd < 0)
+    int sockfd = sys_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sockfd < 0)
     {
         dbg_info("socket create fail\r\n");
         return -1;
     }
-   
-    
 
-    struct sockaddr_in local;
-    local.sin_family = AF_INET;
-    local.sin_port = htons(host_port);
-    inet_pton(AF_INET,host_ip,&local.sin_addr.s_addr);
+    int keepalive = 1;
+    // int keepidle = 5;
+    // int keepinterval = 1;
+    // int keepcount = 10;
+    sys_setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (void *)keepalive, sizeof(keepalive));
+    // sys_setsockopt(sockfd, SOL_TCP, TCP_KEEPIDLE, (void *)keepidle, sizeof(keepidle));
+    // sys_setsockopt(sockfd, SOL_TCP, TCP_KEEPINTVL, (void *)keepinterval, sizeof(keepinterval));
+    // sys_setsockopt(sockfd, SOL_TCP, TCP_KEEPCNT, (void *)keepcount, sizeof(keepcount));
+
+    // struct sockaddr_in local;
+    // local.sin_family = AF_INET;
+    // local.sin_port = htons(host_port);
+    // inet_pton(AF_INET,host_ip,&local.sin_addr.s_addr);
 
     // ret = sys_bind(sockfd,&local,sizeof(struct sockaddr));
     // if(ret < 0)
@@ -119,11 +126,11 @@ int tcp_client_test(void)
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    inet_pton(AF_INET,dest_ip,&addr.sin_addr.s_addr);
+    inet_pton(AF_INET, dest_ip, &addr.sin_addr.s_addr);
     addr.sin_port = htons(dest_port);
 
-    ret = sys_connect(sockfd,&addr,sizeof(struct sockaddr_in));
-    if(ret < 0)
+    ret = sys_connect(sockfd, &addr, sizeof(struct sockaddr_in));
+    if (ret < 0)
     {
         dbg_info("connect fail\r\n");
         return;
@@ -133,36 +140,35 @@ int tcp_client_test(void)
     // {
     //     sys_sleep_ms(1000);
     // }
-    
-    int send_len = 0,recv_len = 0;
+
+    int send_len = 0, recv_len = 0;
     while (1)
     {
         //send_len = sys_sendto(sockfd,message,strlen(message),0,&addr,sizeof(struct sockaddr_in));
-        // send_len = sys_send(sockfd,message,MESSAGE_CNT-1,0);
-        // if(send_len < 0)
-        // {
-        //     dbg_info("send message fail\r\n");
-        //     break;
-        // }
-        //dbg_info("send a message:%s\r\n",message);
-        // socklen_t addr_len = sizeof(struct sockaddr_in);
-        // struct sockaddr_in client_addr;
-        // //recv_len = sys_recvfrom(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0,&client_addr,&addr_len);
-        recv_len = sys_recv(sockfd,recv_buf,RECV_BUF_MAX_SIZE,0);
-        if(recv_len < 0)
+         send_len = sys_send(sockfd,message,strlen(message),0);
+         if(send_len < 0)
+         {
+             dbg_info("send message fail\r\n");
+             break;
+         }
+        // dbg_info("send a message:%s\r\n",message);
+        
+        recv_len = sys_recv(sockfd, recv_buf, RECV_BUF_MAX_SIZE, 0);
+        if (recv_len < 0)
         {
             dbg_info("recvfrom message fail\r\n");
             break;
-        }else if(recv_len == 0){
+        }
+        else if (recv_len == 0)
+        {
             break;
         }
-        dbg_info("recv a message:%s\r\n",recv_buf);
-        memset(recv_buf,0,recv_len);
+        // dbg_info("recv a message:%s\r\n",recv_buf);
+        memset(recv_buf, 0, recv_len);
         // for(int i = 0;i<0xFFFF;++i){
         //     ;
         // }
     }
-    
 
     sys_closesocket(sockfd);
     return 0;

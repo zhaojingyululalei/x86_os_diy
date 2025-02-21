@@ -24,6 +24,49 @@ static int tcp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
 }
 static int tcp_setsockopt(struct _sock_t *s, int level, int optname, const char *optval, int optlen)
 {
+    tcp_t* tcp = (tcp_t*)s;
+    switch (level)
+    {
+    case SOL_SOCKET:
+
+        if (optname & SO_RCVTIMEO)
+        {
+            struct timeval *time = (struct timeval *)optval;
+            int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
+            sock_wait_set(s, tmo, SOCK_RECV_WAIT);
+        }
+        if (optname & SO_SNDTIMEO)
+        {
+            struct timeval *time = (struct timeval *)optval;
+            int tmo = time->tv_sec * 1000 + time->tv_usec / 1000;
+            sock_wait_set(s, tmo, SOCK_SEND_WAIT);
+        }
+        if(optname & SO_KEEPALIVE){
+            tcp->conn.k_enable = *(optval);
+            tcp->conn.k_count = 0;
+            tcp->conn.k_retry = TCP_KEEP_RETRY_DEFAULT;
+            tcp->conn.k_idle  = TCP_KEEP_IDLE_DEFAULT;
+            tcp->conn.k_intv = TCP_KEEP_INTV_DEFAULT;
+            tcp_keepalive_start(tcp);
+        }
+    case SOL_TCP:
+        if(optname & TCP_KEEPIDLE){
+            tcp->conn.k_idle = *(optval);
+            tcp_keepalive_restart(tcp);
+        }
+        if(optname & TCP_KEEPINTVL){
+            tcp->conn.k_intv = *(optval);
+            tcp_keepalive_restart(tcp);
+        }
+        if(optname & TCP_KEEPCNT){
+            tcp->conn.k_retry = *(optval);
+            tcp_keepalive_restart(tcp);
+        }
+    default:
+        dbg_error("unkown setsockopt optname\r\n");
+        return -1;
+    }
+    return 0;
 }
 static int tcp_bind(struct _sock_t *s, const struct sockaddr *addr, socklen_t len)
 {
