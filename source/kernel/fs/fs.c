@@ -1,8 +1,9 @@
 #include "fs.h"
+#include "console.h"
 
-uint8_t tmp_app_buffer[512*1024];
-uint8_t* tmp_pos;
-int shell_fd = 1;
+uint8_t tmp_app_buffer[512 * 1024];
+uint8_t *tmp_pos;
+int shell_fd = 9;
 
 /**
  * 使用LBA48位模式读取磁盘
@@ -39,14 +40,14 @@ static void read_disk(int sector, int sector_count, uint8_t *buf)
         }
     }
 }
-int sys_open(const char *path, int flags, ...)
+int sys_open(const char *path, int flags, mode_t mode)
 {
     int ret;
-    ret = strncmp(path,"shell.elf",9);
-    //路径解析正确
-    if(ret == 0)
+    ret = strncmp(path, "shell.elf", 9);
+    // 路径解析正确
+    if (ret == 0)
     {
-        read_disk(10240,512*1024/512,tmp_app_buffer);
+        read_disk(10240, 512 * 1024 / 512, tmp_app_buffer);
         tmp_pos = tmp_app_buffer;
         return shell_fd;
     }
@@ -55,10 +56,10 @@ int sys_open(const char *path, int flags, ...)
 
 int sys_read(int fd, char *buf, int len)
 {
-    if(fd == shell_fd)
+    if (fd == shell_fd)
     {
-        memcpy(buf,tmp_pos,len);
-        tmp_pos +=len;
+        memcpy(buf, tmp_pos, len);
+        tmp_pos += len;
         return len;
     }
     return 0;
@@ -66,19 +67,22 @@ int sys_read(int fd, char *buf, int len)
 
 int sys_write(int fd, const char *buf, int len)
 {
+    if (fd == 1)
+    {
+
+        console_write(0, buf, len);
+    }
     return -1;
 }
 
 int sys_lseek(int fd, int offset, int whence)
 {
-    if(fd == shell_fd)
+    if (fd == shell_fd)
     {
         tmp_pos = tmp_app_buffer + offset;
-
     }
     return 0;
 }
-
 
 int sys_close(int fd)
 {

@@ -1,7 +1,7 @@
 #include "debug.h"
 #include "chr/serial.h"
 #include "cpu_instr.h"
-
+#include "console.h"
 
 /**
  * @brief 格式化日志并打印到串口
@@ -40,10 +40,10 @@ void dbg_print(int level, const char *file, const char *func, int line, const ch
 // 检查调试输出标志是否启用
 #ifdef DBG_OUTPUT_SERIAL
     serial_printf(str_buf);
-#elif DBG_OUTPUT_TTY
-
+#elif defined(DBG_OUTPUT_TTY)
+    console_write(0, str_buf, strlen(str_buf));
 #else
-
+    
 #endif
 }
 
@@ -55,10 +55,10 @@ void panic(const char *file, int line, const char *func, const char *cond)
 // 检查调试输出标志是否启用
 #ifdef DBG_OUTPUT_SERIAL
     serial_printf(str_buf);
-#elif DBG_OUTPUT_TTY
-
+#elif defined(DBG_OUTPUT_TTY)
+    console_write(0, str_buf, strlen(str_buf));
 #else
-
+    
 #endif
     for (;;)
     {

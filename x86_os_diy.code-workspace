@@ -78,7 +78,8 @@
 			"*.tcc": "c",
 			"algrithem.h": "c",
 			"chrono": "c",
-			"algorithm": "c"
+			"algorithm": "c",
+			"kbd.h": "c"
 		}
 	}
 }

@@ -177,7 +177,7 @@ void PF_handler_copy_on_write(ph_addr_t PF_vm)
 
     // 是copy on write导致的
     // 重新分配一块内存
-    dbg_info("page fault handle copy on write\r\n");
+    //dbg_info("page fault handle copy on write\r\n");
     PF_pte->v = 0;
     // 分配并建立映射关系
     PF_vm = align_down_to(PF_vm, MEM_PAGE_SIZE);

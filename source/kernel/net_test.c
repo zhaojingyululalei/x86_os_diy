@@ -87,7 +87,7 @@ int tcp_client_test(void)
     const char *dest_ip = "192.168.169.40";
     const char *host_ip = "192.168.169.50";
     port_t host_port = 1500;
-    port_t dest_port = 5000;
+    port_t dest_port = 5550;
 
     const char* message = "hello world\r\n";
     // message[MESSAGE_CNT - 1] = '\0';
@@ -140,7 +140,7 @@ int tcp_client_test(void)
     // {
     //     sys_sleep_ms(1000);
     // }
-
+    
     int send_len = 0, recv_len = 0;
     while (1)
     {

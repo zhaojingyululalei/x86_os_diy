@@ -29,6 +29,9 @@ typedef void (*irq_handler_t)(void);
 
 #define IRQ0_BASE           0x20
 #define IRQ0_TIMER          0x20
+#define IRQ1_KEYBOARD		0x21				// 按键中断
+#define IRQ12_MOUSE         0x2C                // 鼠标中断号
+#define IRQ14_HARDDISK_PRIMARY		0x2E		// 主总线上的ATA磁盘中断
 
 //错误码
 #define ERR_PAGE_P          (1 << 0)

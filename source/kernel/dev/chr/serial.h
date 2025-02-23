@@ -8,4 +8,5 @@
 
 void serial_init(void);
 void serial_printf(const char * str_buf);
+void sys_serial_printf(const char * str_buf);
 #endif

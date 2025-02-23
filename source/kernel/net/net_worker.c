@@ -51,7 +51,7 @@ static void handle(void)
     while (1)
     {
         // 取消息，最多等第一个定时器的时间
-        net_msg_t *msg = net_msg_dequeue(soft_timer_get_first_time());
+        net_msg_t *msg = net_msg_dequeue(-1);
         if (!msg)
         {
             return; // 直到取不出来为止，取不出来说明队列空了，返回
@@ -114,6 +114,7 @@ DEFINE_PROCESS_FUNC(worker)
                 package_collect(pkg_msg->package);
                 net_msg_free(pkg_msg);
             }
+            netif = netif_next(netif);
         }
 
         // 处理消息队列的数据

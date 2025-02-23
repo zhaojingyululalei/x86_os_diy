@@ -11,7 +11,7 @@ int first_task_main(void)
     int pid = getpid();
     printf_tmp("first task id=%d \r\n", pid);
     int i;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 1; i++)
     {
         pid = fork();
         if (pid < 0)

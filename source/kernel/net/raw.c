@@ -7,7 +7,7 @@ static mempool_t raw_pool;
 static uint8_t raw_buf[RAW_MAX_NR * (sizeof(raw_t) + sizeof(list_node_t))];
 static list_t raw_list;
 
-static int raw_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
+static int raw_sendto(struct _sock_t *s, const void *buf, ssize_t len, int flags,
                       const struct sockaddr *dest, socklen_t dest_len)
 {
     int ret;
@@ -55,7 +55,7 @@ static raw_t *raw_find(ipaddr_t *src, int protocal)
     }
     return NULL;
 }
-static int raw_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
+static int raw_recvfrom(struct _sock_t *s, void *buf, ssize_t len, int flags,
                         struct sockaddr *src, socklen_t *addr_len)
 {
     int ret;

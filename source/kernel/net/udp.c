@@ -23,7 +23,7 @@ static void udp_data_free(udp_data_t *data)
     package_collect(data->package);
     mempool_free_blk(&udp_data_pool, data);
 }
-static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
+static int udp_recvfrom(struct _sock_t *s, void *buf, ssize_t len, int flags,
                         struct sockaddr *src, socklen_t *addr_len)
 {
     int ret;
@@ -54,7 +54,7 @@ static int udp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
     udp_data_free(udp_data);
     return cpy_len;
 }
-static int udp_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
+static int udp_sendto(struct _sock_t *s, const void *buf, ssize_t len, int flags,
                       const struct sockaddr *dest, socklen_t dest_len)
 {
     int ret;
@@ -150,7 +150,7 @@ static int udp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t
     s->target_port = ntohs(target_addr->sin_port); // 端口之前设置成网络序了
     return 0;
 }
-static int udp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
+static int udp_send(struct _sock_t *s, const void *buf, ssize_t len, int flags)
 {
     struct sockaddr_in addr;
     addr.sin_addr.s_addr = s->target_ip.q_addr;
@@ -158,7 +158,7 @@ static int udp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
     addr.sin_port = htons(s->target_port);
     return udp_sendto(s, buf, len, flags, &addr, sizeof(struct sockaddr_in));
 }
-static int udp_recv(struct _sock_t *s, void *buf, size_t len, int flags)
+static int udp_recv(struct _sock_t *s, void *buf, ssize_t len, int flags)
 {
 
     int ret;

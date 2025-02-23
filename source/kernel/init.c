@@ -12,6 +12,9 @@ boot_info_t *boot_inform = NULL;
 #include "ipc/mutex.h"
 #include "ipc/semaphor.h"
 #include "net/net.h"
+#include "console.h"
+#include "kbd.h"
+#include "mouse.h"
 task_t thello;
 task_t tworld;
 sem_t sem;
@@ -85,6 +88,10 @@ void kernel_init(boot_info_t *boot_info)
     task_ipc_init();
     memory_init();
     cpu_init();
+    console_init(0);
+    kbd_init(); 
+    mouse_init();
+    
     sched_init();
     timer_init();
     
@@ -100,7 +107,7 @@ void kernel_init(boot_info_t *boot_info)
     net_init();
     irq_enable_global();
     
-    net_test();
+    //net_test();
     // while (1)
     // {
     //     //dbg_info("eat an apple\r\n");

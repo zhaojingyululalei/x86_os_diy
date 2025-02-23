@@ -64,7 +64,7 @@ typedef enum _tcp_state_t{
     TCP_STATE_LAST_ACK,
 
     TCP_STATE_MAX,
-}tcp_state_t;tcp_acce
+}tcp_state_t;
 
 typedef enum _tcp_in_pkg_type_t{
     TCP_PKG_TYPE_SYN_ACK, //收到这种类型数据包，只能遍历链表找符合条件的tcp结构

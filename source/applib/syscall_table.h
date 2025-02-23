@@ -24,8 +24,22 @@
 #define SYS_get_clocktime 20
 #define SYS_mktime 21
 #define SYS_local_time 22
-
-
-
+#define SYS_SER_printf 23
+#define SYS_socket  24
+#define SYS_closesocket 25
+#define SYS_listen 26
+#define SYS_accept 27
+#define SYS_sendto 28
+#define SYS_recvfrom 29
+#define SYS_connect 30
+#define SYS_bind 31
+#define SYS_send 32
+#define SYS_recv 33
+#define SYS_setsockopt 34
+#define SYS_open 35
+#define SYS_read 36
+#define SYS_write 37
+#define SYS_lseek 38
+#define SYS_close 39
 #endif
 

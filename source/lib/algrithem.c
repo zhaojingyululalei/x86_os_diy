@@ -1,6 +1,5 @@
 #include "algrithem.h"
 #include "_time.h"
-#include "rtc.h"
 /**
  * 计算16位校验和
  * @param buf 数组缓存区起始

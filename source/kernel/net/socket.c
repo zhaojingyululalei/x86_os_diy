@@ -46,7 +46,7 @@ int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t len)
     return ret;
 }
 
-int sys_sendto(int sockfd, const void *buf, size_t buf_len, int flags,
+int sys_sendto(int sockfd, const void *buf, ssize_t buf_len, int flags,
                const struct sockaddr *dest, socklen_t dest_len)
 {
     sock_sendto_param_t param;
@@ -76,7 +76,7 @@ int sys_sendto(int sockfd, const void *buf, size_t buf_len, int flags,
     return send_len;
 }
 /*只要放到缓存里，就算发送成功。对方没收到，按丢包算*/
-static int sys_tcp_send(int sockfd, const void *buf, size_t len, int flags)
+static int sys_tcp_send(int sockfd, const void *buf, ssize_t len, int flags)
 {
     sock_send_param_t param;
     param.sockfd = sockfd;
@@ -114,7 +114,7 @@ static int sys_tcp_send(int sockfd, const void *buf, size_t len, int flags)
 
     return send_len;
 }
-static int sys_udp_send(int sockfd, const void *buf, size_t len, int flags)
+static int sys_udp_send(int sockfd, const void *buf, ssize_t len, int flags)
 {
     sock_send_param_t param;
     param.sockfd = sockfd;
@@ -144,7 +144,7 @@ static int sys_udp_send(int sockfd, const void *buf, size_t len, int flags)
 
     return send_len;
 }
-int sys_send(int sockfd, const void *buf, size_t len, int flags)
+int sys_send(int sockfd, const void *buf, ssize_t len, int flags)
 {
     sock_send_param_t param;
     param.sockfd = sockfd;
@@ -162,7 +162,7 @@ int sys_send(int sockfd, const void *buf, size_t len, int flags)
         return sys_udp_send(sockfd, buf, len, flags);
     }
 }
-int sys_recv(int sockfd, void *buf, size_t len, int flags)
+int sys_recv(int sockfd, void *buf, ssize_t len, int flags)
 {
     sock_recv_param_t param;
     param.sockfd = sockfd;
@@ -200,7 +200,7 @@ int sys_recv(int sockfd, void *buf, size_t len, int flags)
  * 多个线程调用同一个recvfrom，使用同一个sockfd，接收到的数据是不同的数据包
  * 有数据到达，立马接收:如果打算接受2000字节，但是只有1000字节的数据包，就返回1000，不会一直等到2000字节才返回
  */
-int sys_recvfrom(int sockfd, void *buf, size_t len, int flags,
+int sys_recvfrom(int sockfd, void *buf, ssize_t len, int flags,
                  struct sockaddr *src, socklen_t *addr_len)
 {
 

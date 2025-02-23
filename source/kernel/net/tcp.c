@@ -14,11 +14,11 @@ static uint8_t tcp_data_buf[TCP_BUF_MAX_NR * (sizeof(list_node_t) + sizeof(tcp_d
 static mempool_t tcp_data_pool;
 
 
-static int tcp_sendto(struct _sock_t *s, const void *buf, size_t len, int flags,
+static int tcp_sendto(struct _sock_t *s, const void *buf, ssize_t len, int flags,
                       const struct sockaddr *dest, socklen_t dest_len)
 {
 }
-static int tcp_recvfrom(struct _sock_t *s, void *buf, size_t len, int flags,
+static int tcp_recvfrom(struct _sock_t *s, void *buf, ssize_t len, int flags,
                         struct sockaddr *src, socklen_t *addr_len)
 {
 }
@@ -192,7 +192,7 @@ static int tcp_connect(struct _sock_t *s, const struct sockaddr *addr, socklen_t
     // 修改状态
     tcp_set_state(tcp, TCP_STATE_SYN_SEND);
 }
-static int tcp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
+static int tcp_send(struct _sock_t *s, const void *buf, ssize_t len, int flags)
 {
     int ret;
     tcp_t* tcp = (tcp_t*)s;
@@ -214,7 +214,7 @@ static int tcp_send(struct _sock_t *s, const void *buf, size_t len, int flags)
     }
     return write_cnt;
 }
-static int tcp_recv(struct _sock_t *s, void *buf, size_t len, int flags)
+static int tcp_recv(struct _sock_t *s, void *buf, ssize_t len, int flags)
 {
     tcp_t* tcp = (tcp_t*)s;
     if(tcp->state!= TCP_STATE_ESTABLISHED && tcp->state != TCP_STATE_CLOSE_WAIT){

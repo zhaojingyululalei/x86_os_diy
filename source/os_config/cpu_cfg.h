@@ -61,7 +61,7 @@
 #define SELECTOR_USR_DATA_SEG           (6<<3|RPL_3)
 #define SELECTOR_CALL_GATE              (7<<3|RPL_3)
 
-#define CALL_GATE_PRAM_COUNT    5
+#define CALL_GATE_PRAM_COUNT    7
 
 
 

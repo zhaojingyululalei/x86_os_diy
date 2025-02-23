@@ -34,4 +34,7 @@ void serial_printf(const char * str_buf) {
     irq_leave_protection(state);
 }
 
+void sys_serial_printf(const char * str_buf){
+    return serial_printf(str_buf);
+}
 

@@ -9,7 +9,7 @@ typedef struct _syscall_frame_t {
 	int gs, fs, es, ds;
 	int edi, esi, ebp, dummy, ebx, edx, ecx, eax;
 	int eip, cs;
-	int func_id, arg0, arg1, arg2, arg3;
+	int func_id, arg0, arg1, arg2, arg3, arg4, arg5;
 	int esp, ss;
 }syscall_frame_t;
 

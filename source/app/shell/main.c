@@ -1,13 +1,17 @@
 #include "main.h"
 
 
+int x = 0;
 void net_test(void)
 {
     
 }
-int x = 0;
-int main(int argc, char *argv[])
-{
+void fork_test(void){
+    // while(1){
+    //     printf("hello\r\n");
+    //     sleep(2000);
+    // }
+   
     printf_tmp("shell create some child\r\n",1);
   
 
@@ -49,7 +53,17 @@ int main(int argc, char *argv[])
     //     sleep(1000);
     // }
 
-        
+}
+int main(int argc, char *argv[])
+{
+    
+    
+    printf("shell>> \r\n");
+    while (1)
+    {
+        sleep(2000);
+    }
+    
   
     
     return 0;

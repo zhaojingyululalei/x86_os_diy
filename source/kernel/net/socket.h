@@ -29,7 +29,7 @@
 
 typedef uint16_t port_t;
 typedef int socklen_t;
-typedef long size_t;
+typedef long ssize_t;
 #pragma pack(1)
 
 /**
@@ -78,15 +78,16 @@ struct sockaddr_in
 
 int sys_socket(int family,int type,int protocal);
 int sys_connect(int sockfd,const struct  sockaddr* addr,  socklen_t len);
-int sys_sendto(int sockfd,const void* buf,size_t buf_len,int flags,
+int sys_sendto(int sockfd,const void* buf,ssize_t buf_len,int flags,
                         const struct sockaddr* dest,socklen_t dest_len);
                         
-int sys_recvfrom(int sockfd, void *buf, size_t len, int flags,
+int sys_recvfrom(int sockfd, void *buf, ssize_t len, int flags,
                  struct sockaddr *src, socklen_t *addr_len);
 int sys_setsockopt(int sockfd,  int level, int optname, const char * optval, int optlen);
-int sys_send(int sockfd, const void *buf, size_t len, int flags);
-int sys_recv(int sockfd, void *buf, size_t len, int flags);
+int sys_send(int sockfd, const void *buf, ssize_t len, int flags);
+int sys_recv(int sockfd, void *buf, ssize_t len, int flags);
 int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int sys_closesocket(int sockfd);
 int sys_listen(int sockfd,int backlog);
+int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *len);
 #endif

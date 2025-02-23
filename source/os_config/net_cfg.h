@@ -39,8 +39,18 @@ typedef enum _net_err_t{
 #define PORT_DYNAMIC_ALLOC_LOWER_BOUND  1000
 #define PORT_DYNAMIC_ALLOC_UP_BOUND 2000
 
-
-
+/*dns*/
+#define DNS_REQ_SIZE                    10          // DNS请求结构
+#define DNS_SERVER_DEFAULT              "180.76.76.76"  // 百度的DNS服务器
+#define DNS_SERVER_0                    "8.8.8.8"       // google的DNS服务器
+#define DNS_SERVER_1                    "223.6.6.6"     // 阿里云的DNS服务器
+#define DNS_SERVER_MAX                  4           // 最大支持的DNS服务器表项数量
+#define DNS_ENTRY_SIZE                  10          // DNS表项的数量
+#define DNS_DOMAIN_NAME_MAX             64          // DNS中域名的长度
+#define DNS_PORT_DEFAULT                53          // 缺省的DNS端口
+#define DNS_QUERY_RETRY_TMO             5           // DNS查询超时
+#define DNS_QUERY_RETRY_CNT             5           // 查询超时重试次数
+#define DNS_WORKING_BUF_SIZE            512         // 工作缓存大小
 /*debug */
 //这个不要注释掉
 #define TEST_FOR_PORT_RANDOM

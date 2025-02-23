@@ -326,7 +326,7 @@ static ph_addr_t load_app_elf(task_t *task, const char *path)
     Elf32_Ehdr elf_hdr;
     Elf32_Phdr elf_phdr;
 
-    int fd = sys_open(path, 0);
+    int fd = sys_open(path, 0,0);
     if (fd < 0)
     {
         dbg_error("open app xxx.elf fail\r\n");

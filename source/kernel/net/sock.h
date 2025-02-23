@@ -11,15 +11,15 @@ struct _sock_t;
 typedef struct _sock_ops_t
 {   
     int (*close)(struct _sock_t* s);
-	int (*sendto)(struct _sock_t * s, const void* buf, size_t len, int flags, 
+	int (*sendto)(struct _sock_t * s, const void* buf, ssize_t len, int flags, 
                         const struct  sockaddr* dest,  socklen_t dest_len);
-	int(*recvfrom)(struct _sock_t* s, void* buf, size_t len, int flags, 
+	int(*recvfrom)(struct _sock_t* s, void* buf, ssize_t len, int flags, 
                         struct  sockaddr* src,  socklen_t * addr_len);
 	int (*setsockopt)(struct _sock_t* s,  int level, int optname, const char * optval, int optlen);
 	int (*bind)(struct _sock_t* s, const struct  sockaddr* addr,  socklen_t len);
 	int (*connect)(struct _sock_t* s, const struct  sockaddr* addr,  socklen_t len);
-	int(*send)(struct _sock_t* s, const void* buf, size_t len, int flags);
-	int(*recv)(struct _sock_t* s, void* buf, size_t len, int flags);
+	int(*send)(struct _sock_t* s, const void* buf, ssize_t len, int flags);
+	int(*recv)(struct _sock_t* s, void* buf, ssize_t len, int flags);
     int (*listen) (struct _sock_t *s, int backlog);
     int (*accept)(struct _sock_t *s, struct  sockaddr* addr,  socklen_t* len);
     void (*destroy)(struct _sock_t *s);

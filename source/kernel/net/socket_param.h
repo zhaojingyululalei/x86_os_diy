@@ -12,7 +12,7 @@ typedef struct _sock_sendto_param_t
 {
     int sockfd;
     const uint8_t *buf;
-    size_t buf_len;
+    ssize_t buf_len;
     int flags;
     const struct sockaddr *addr;
     socklen_t *addr_len;
@@ -22,7 +22,7 @@ typedef struct _sock_recvfrom_param_t
 {
     int sockfd;
     uint8_t *buf;
-    size_t buf_len;
+    ssize_t buf_len;
     int flags;
     struct sockaddr *addr;
     socklen_t *addr_len;
@@ -48,7 +48,7 @@ typedef struct _sock_send_param_t
 {
     int sockfd;
     const void *buf;
-    size_t len;
+    ssize_t len;
     int flags;
 } sock_send_param_t;
 
@@ -56,7 +56,7 @@ typedef struct _sock_recv_param_t
 {
     int sockfd;
     void *buf;
-    size_t len;
+    ssize_t len;
     int flags;
 } sock_recv_param_t;
 

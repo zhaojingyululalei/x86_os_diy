@@ -3,6 +3,7 @@
 #include "types.h"
 #include "../kernel/ipc/mutex.h"
 #include "../kernel/ipc/semaphor.h"
+#include "fs/fs.h"
 // 判断当前系统是否是小端,0xff在低字节还是高字节
 #define IS_LITTLE_ENDIAN (*(uint16_t *)"\0\xff" > 0x100)
 typedef struct _syscall_args_t
@@ -12,6 +13,8 @@ typedef struct _syscall_args_t
     int arg1;
     int arg2;
     int arg3;
+    int arg4;
+    int arg5;
 } syscall_args_t;
 
 int sleep(int ms);
@@ -37,8 +40,13 @@ int sem_count(sem_t *sem);
 int get_clocktime(tm_t *time);
 time_t mktime(tm_t *time);
 int local_time(tm_t *tm, time_t time);
+void printf(char *fmt, ...);
 
-
+int open(const char* path,int flags,mode_t mode);
+int read(int fd,char* buf,int len);
+int write(int fd,const char* buf,int len);
+int lseek(int fd,int offset, int whence);
+int close(int fd);
 
 
 
