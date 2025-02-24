@@ -455,18 +455,22 @@ static void write_esc_square (console_t * console, char c) {
  * 实现pwdget作为tty的输出
  * 可能有多个进程在写，注意保护
  */
-int console_write (int idx,char *data,int len) {
-	console_t * console = console_buf + idx;
+int console_write (tty_t * tty) {
+	console_t * console = console_buf + tty->console_idx;
 
     // 下面的写序列涉及到状态机，还有多进程同时写，因此加上锁
     sys_mutex_lock(&console->mutex);
 
-    int i = 0;
+    int len = 0;
     do {
         char c;
 
         // 取字节数据
-        c = data[i];
+        int err = tty_fifo_get(&tty->ofifo, &c);
+        if (err < 0) {
+            break;
+        }
+        sys_sem_notify(&tty->osem);
 
         // 显示出来
         switch (console->write_state) {
@@ -481,8 +485,8 @@ int console_write (int idx,char *data,int len) {
                 write_esc_square(console, c);
                 break;
         }
-        i++;
-    }while (i<len);
+        len++;
+    }while (1);
 
     sys_mutex_unlock(&console->mutex);
 

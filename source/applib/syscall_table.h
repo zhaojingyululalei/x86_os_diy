@@ -41,5 +41,6 @@
 #define SYS_write 37
 #define SYS_lseek 38
 #define SYS_close 39
+#define SYS_dup 40
 #endif
 

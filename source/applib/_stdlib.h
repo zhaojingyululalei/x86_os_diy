@@ -47,7 +47,7 @@ int read(int fd,char* buf,int len);
 int write(int fd,const char* buf,int len);
 int lseek(int fd,int offset, int whence);
 int close(int fd);
-
+int dup(int fd);
 
 
 // 32位无符号整数转换函数（主机到网络）

@@ -147,6 +147,44 @@ ph_addr_t task_get_page_dir(task_t *task)
     return task->tss.cr3;
 }
 
+/**
+ * @brief 获取当前进程指定的文件描述符
+ */
+file_t * task_file (int fd) {
+    if ((fd >= 0) && (fd < TASK_OFILE_NR)) {
+        file_t * file = get_cur_task()->file_table[fd];
+        return file;
+    }
+
+    return (file_t *)0;
+}
+
+/**
+ * @brief 为指定的file分配一个新的文件id
+ */
+int task_alloc_fd (file_t * file) {
+    task_t * task = get_cur_task();
+
+    for (int i = 0; i < TASK_OFILE_NR; i++) {
+        file_t * p = task->file_table[i];
+        if (p == (file_t *)0) {
+            task->file_table[i] = file;
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * @brief 移除任务中打开的文件fd
+ */
+void task_remove_fd (int fd) {
+    if ((fd >= 0) && (fd < TASK_OFILE_NR)) {
+        get_cur_task()->file_table[fd] = (file_t *)0;
+    }
+}
+
 int sys_getpid(void)
 {
     irq_state_t state = irq_enter_protection();

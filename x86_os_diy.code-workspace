@@ -79,7 +79,8 @@
 			"algrithem.h": "c",
 			"chrono": "c",
 			"algorithm": "c",
-			"kbd.h": "c"
+			"kbd.h": "c",
+			"dev.h": "c"
 		}
 	}
 }

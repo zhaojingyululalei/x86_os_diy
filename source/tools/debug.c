@@ -2,7 +2,7 @@
 #include "chr/serial.h"
 #include "cpu_instr.h"
 #include "console.h"
-
+#include "dev.h"
 /**
  * @brief 格式化日志并打印到串口
  */
@@ -41,7 +41,7 @@ void dbg_print(int level, const char *file, const char *func, int line, const ch
 #ifdef DBG_OUTPUT_SERIAL
     serial_printf(str_buf);
 #elif defined(DBG_OUTPUT_TTY)
-    console_write(0, str_buf, strlen(str_buf));
+    ;
 #else
     
 #endif
@@ -56,7 +56,8 @@ void panic(const char *file, int line, const char *func, const char *cond)
 #ifdef DBG_OUTPUT_SERIAL
     serial_printf(str_buf);
 #elif defined(DBG_OUTPUT_TTY)
-    console_write(0, str_buf, strlen(str_buf));
+    dev_write(0,0,str_buf,strlen(str_buf));
+    //console_write(0, str_buf, strlen(str_buf));
 #else
     
 #endif

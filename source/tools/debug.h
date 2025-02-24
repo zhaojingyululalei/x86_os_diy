@@ -7,8 +7,8 @@
 
 #define DBG_LEVEL_CTL_SET       3           //这里手动设置
 /*debug输出到哪*/
-//#define DBG_OUTPUT_SERIAL
-#define DBG_OUTPUT_TTY         
+#define DBG_OUTPUT_SERIAL
+//#define DBG_OUTPUT_TTY         
 
 // 开启的信息输出配置，值越大，输出的调试信息越多
 #define DBG_LEVEL_NONE           0         // 不开启任何输出

@@ -15,6 +15,7 @@ boot_info_t *boot_inform = NULL;
 #include "console.h"
 #include "kbd.h"
 #include "mouse.h"
+#include "dev.h"
 task_t thello;
 task_t tworld;
 sem_t sem;
@@ -88,7 +89,9 @@ void kernel_init(boot_info_t *boot_info)
     task_ipc_init();
     memory_init();
     cpu_init();
-    console_init(0);
+    fs_init();
+    // int dev_id = dev_open(DEV_TTY,0,NULL);
+    // dev_write(dev_id,0,"hello\r\n",7);
     kbd_init(); 
     mouse_init();
     

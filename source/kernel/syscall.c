@@ -10,6 +10,7 @@
 #include "console.h"
 #include "net/socket.h"
 #include "fs/fs.h"
+#include "dev.h"
 // 系统调用处理函数类型
 typedef int (*syscall_handler_t)(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4, uint32_t arg5);
 
@@ -20,7 +21,7 @@ int sys_printf_tmp(char *fmt, int arg)
 #ifdef DBG_OUTPUT_SERIAL
 	serial_printf(str_buf);
 #elif defined(DBG_OUTPUT_TTY)
-	console_write(0, str_buf, strlen(str_buf));
+	dev_write(0,0,str_buf,strlen(str_buf));
 #else
 
 #endif
@@ -68,6 +69,7 @@ static const syscall_handler_t sys_table[] = {
 	[SYS_write] = (syscall_handler_t)sys_write,
 	[SYS_lseek] = (syscall_handler_t)sys_lseek,
 	[SYS_close] = (syscall_handler_t)sys_close,
+	[SYS_dup] = (syscall_handler_t)sys_dup,
 };
 
 /**

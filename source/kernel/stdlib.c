@@ -93,7 +93,8 @@ void printf(char *fmt, ...)
     va_start(args, fmt);
     vsprintf(str_buf + offset, fmt, args);
     va_end(args);
-    printf_inner(str_buf);
+    //printf_inner(str_buf);
+    write(1,str_buf,strlen(str_buf));
 }
 int fork()
 {

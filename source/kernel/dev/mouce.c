@@ -84,46 +84,6 @@ void mouse_init(void) {
 
     dbg_info("Mouse initialized successfully\r\n");
 }
-// void mouse_init(void) {
-//     // 禁用 PS/2 端口
-//     outb(0x64, 0xAD); // 禁用键盘端口
-//     outb(0x64, 0xA7); // 禁用鼠标端口
-
-//     // 清空输出缓冲区
-//     while (inb(0x64) & 0x01) {
-//         inb(0x60);
-//     }
-
-//     // 启用鼠标端口
-//     outb(0x64, 0xA8); // 启用鼠标端口
-//     outb(0x64, 0x20); // 读取控制器配置字节
-//     uint8_t config = inb(0x60); // 获取当前配置
-//     config |= 0x02; // 启用鼠标中断
-//     config &= ~0x20; // 禁用键盘中断
-//     outb(0x64, 0x60); // 写入新的配置字节
-//     outb(0x60, config);
-
-//     // 启用键盘端口
-//     outb(0x64, 0xAE);
-
-//     // 发送启用鼠标命令
-//     outb(0x64, 0xD4); // 告诉控制器下一个字节是发送给鼠标的
-//     outb(0x60, 0xF4); // 启用鼠标
-
-//     // 等待鼠标响应
-//     while (!(inb(0x64) & 0x01)); // 等待数据可用
-//     uint8_t response = inb(0x60);
-//     if (response != 0xFA) {
-//         dbg_error("Mouse failed to enable\r\n");
-//         return;
-//     }
-
-//     // 安装鼠标中断处理程序
-//     interupt_install(IRQ12_MOUSE, exception_handler_mouse);
-//     irq_enable(IRQ12_MOUSE);
-
-//     dbg_info("Mouse initialized successfully\r\n");
-// }
 
 void do_handler_mouse(exception_frame_t *frame)
 {

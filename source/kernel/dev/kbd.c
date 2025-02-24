@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "types.h"
 #include "cpu_instr.h"
+#include "chr/tty.h"
 extern void exception_handler_kbd(void);
 static kbd_state_t kbd_state;	// 键盘状态
 static const key_map_t map_table[256] = {
@@ -134,7 +135,7 @@ static void do_normal_key (uint8_t raw_code) {
             }
 
             
-            dbg_info("key=%c", key);
+            tty_in(key);
             
         }
         break;

@@ -56,9 +56,16 @@ void fork_test(void){
 }
 int main(int argc, char *argv[])
 {
-    
-    
-    printf("shell>> \r\n");
+    char cmd_buf[128] = {0};
+    char* str = "shell>> \r\n";
+    int fd = open("tty0",0,0); //stdin
+    dup(fd);//stdout
+    dup(fd);//stderr
+    write(stdout,str,strlen(str));
+    sleep(2000);
+    int len = read(stdin,cmd_buf,128);
+    write(stdout,cmd_buf,len);
+    printf("hello shell\r\n");
     while (1)
     {
         sleep(2000);

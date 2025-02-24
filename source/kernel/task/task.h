@@ -7,9 +7,10 @@
 #define TASK_SCHED_POLICY_DEFAULT   SCHED_FIFO
 #define USR_STACK_SIZE_DEFAULT  (2 * MEM_PAGE_SIZE)
 #define KERNEL_STACK_SIZE_DEFAULT   MEM_PAGE_SIZE
-
+#define TASK_OFILE_NR				128			// 最多支持打开的文件数量
 
 #include "pid.h"
+#include "fs/file.h"
 #define DEFINE_PROCESS_FUNC(name)            void* name(void* arg)
 typedef void*(*process_func_t)(void*);
 /**
@@ -78,7 +79,7 @@ typedef struct _task_t
     ph_addr_t heap_e;
 
     flmallocor_t flmlk; //malloc分配器
-
+    file_t * file_table[TASK_OFILE_NR];	// 任务最多打开的文件数量
 
 } task_t;
 
@@ -130,6 +131,10 @@ void schedul(void);
 void task_time_tick(void);
 void task_goto_sleep(task_t* task);
 void task_wakeup(task_t* task);
+
+file_t * task_file (int fd);
+int task_alloc_fd (file_t * file);
+void task_remove_fd (int fd);
 
 /*系统调用*/
 int sys_sleep_ms(int time);

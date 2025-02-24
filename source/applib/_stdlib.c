@@ -69,7 +69,7 @@ void ser_printf(const char* str){
 void printf_inner(const char *str)
 {
 #ifdef DBG_OUTPUT_SERIAL
-    serial_printf(str_buf);
+    ser_printf(str);
 #elif defined(DBG_OUTPUT_TTY)
     write(1,str,strlen(str));
 #else
@@ -88,7 +88,8 @@ void printf(char *fmt, ...)
     va_start(args, fmt);
     vsprintf(str_buf + offset, fmt, args);
     va_end(args);
-    printf_inner(str_buf);
+    //printf_inner(str_buf);
+    write(1,str_buf,strlen(str_buf));
 }
 
 int fork(void) {
@@ -401,7 +402,12 @@ int close(int fd){
     args.arg0 = fd;
     return sys_call(&args); 
 }
-
+int dup(int fd){
+    syscall_args_t args;
+    args.id = SYS_dup;
+    args.arg0 = fd;
+    return sys_call(&args);
+}
 
 
 
