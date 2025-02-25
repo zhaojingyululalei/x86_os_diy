@@ -136,6 +136,16 @@ int sys_lseek(int fd, int offset, int whence)
 
 int sys_close(int fd)
 {
+    file_t *file = task_file(fd);
+    file_desc_ref(file);
+    if(file->ref==0){
+        //彻底关闭
+        if(file->type == FILE_NORMAL || file->type == FILE_DIR){
+            ;
+        }else{
+            dev_close(file->dev_id);
+        }
+    }
     return 0;
 }
 /**

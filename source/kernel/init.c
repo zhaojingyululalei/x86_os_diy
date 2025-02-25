@@ -107,7 +107,7 @@ void kernel_init(boot_info_t *boot_info)
     task_t *first_task = get_cur_task();
     ASSERT(first_task != 0);
     cp_first_task = *first_task;
-    net_init();
+    //net_init();
     irq_enable_global();
     
     //net_test();

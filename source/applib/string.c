@@ -228,57 +228,60 @@ void vsprintf(char *buffer, const char *fmt, va_list args) {
 
     *buf_ptr = '\0'; // 确保字符串以 NULL 结尾
 }
+char* strchr(const char *str, int c) {
+    // 将字符 c 转换为 char 类型
+    char target = (char)c;
 
+    // 遍历字符串，直到找到目标字符或到达字符串结尾
+    while (*str) {
+        if (*str == target) {
+            return (char*)str;
+        }
+        str++;
+    }
 
-// void sprintf(char *buffer, const char *fmt, ...) {
-//     va_list args;
-//     va_start(args, fmt);
-//     vsprintf(buffer, fmt, args);
-//     va_end(args);
-// }
+    // 如果没找到目标字符，返回 NULL
+    return NULL;
+}
 
-// // 格式化字符串输出函数 vsprintf
-// void vsprintf(char *buffer, const char *fmt, va_list args) {
-//     char *buf_ptr = buffer;
-//     const char *fmt_ptr = fmt;
-//     while (*fmt_ptr) {
-//         if (*fmt_ptr == '%' && *(fmt_ptr + 1) != '%') {
-//             fmt_ptr++;
-//             switch (*fmt_ptr) {
-//                 case 'd': {
-//                     int num = va_arg(args, int);
-//                     itoa(buf_ptr, num, 10);
-//                     buf_ptr += strlen(buf_ptr);
-//                     break;
-//                 }
-//                 case 'x': {
-//                     int num = va_arg(args, int);
-//                     itoa(buf_ptr, num, 16);
-//                     buf_ptr += strlen(buf_ptr);
-//                     break;
-//                 }
-//                 case 's': {
-//                     const char *str = va_arg(args, const char *);
-//                     strcpy(buf_ptr, str);
-//                     buf_ptr += strlen(str);
-//                     break;
-//                 }
-//                 case 'c': {
-//                     char c = (char) va_arg(args, int);  // `%c` 格式的字符参数
-//                     *buf_ptr++ = c;
-//                     break;
-//                 }
-//                 default:
-//                     *buf_ptr++ = *fmt_ptr;
-//                     break;
-//             }
-//         } else {
-//             *buf_ptr++ = *fmt_ptr;
-//         }
-//         fmt_ptr++;
-//     }
-//     *buf_ptr = '\0';
-// }
+char* strtok(char *str, const char *delim) {
+    static char *current_pos = NULL;
+    
+    // 如果传入一个新的字符串，更新 current_pos 指针
+    if (str != NULL) {
+        current_pos = str;
+    }
+    
+    // 如果当前字符串已经处理完，返回 NULL
+    if (current_pos == NULL || *current_pos == '\0') {
+        return NULL;
+    }
+    
+    // 跳过分隔符
+    while (*current_pos && strchr(delim, *current_pos)) {
+        current_pos++;
+    }
+
+    // 如果到达了字符串末尾，返回 NULL
+    if (*current_pos == '\0') {
+        return NULL;
+    }
+
+    // 标记单词的开始位置
+    char *start = current_pos;
+
+    // 找到下一个分隔符并将其替换为 '\0'
+    while (*current_pos && !strchr(delim, *current_pos)) {
+        current_pos++;
+    }
+
+    if (*current_pos != '\0') {
+        *current_pos = '\0';
+        current_pos++;
+    }
+
+    return start;
+}
 
 
 

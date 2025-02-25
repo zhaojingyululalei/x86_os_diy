@@ -195,6 +195,19 @@ int sys_getpid(void)
 #include "syscall.h"
 #include "cpu_cfg.h"
 
+static int copy_parent_fds(task_t* child){
+    task_t* parent = child->parent;
+    for (int i = 0; i < TASK_OFILE_NR; i++)
+    {
+        file_t* file  = parent->file_table[i];
+        if(file){
+            file_inc_ref(file);
+            child->file_table[i] = file;
+        }
+    }
+    return 0;
+
+}
 int sys_fork(void)
 {
     irq_state_t state = irq_enter_protection();
@@ -234,6 +247,8 @@ int sys_fork(void)
     tss->eflags = frame->eflags;
 
     child->parent = parent;
+    copy_parent_fds(child);
+
 
     // 拷贝父进程页表，并把用户空间页表全部改写为只读,用于触发页异常。在异常中完成写时复制操作
     ph_addr_t stack_start = USR_STACK_TOP - parent->attr.stack_size; // 栈开始地址
@@ -639,6 +654,16 @@ void task_collect(task_t *task)
     mmu_destory_task_pgd(pagedir);
     // 释放内核栈空间esp0
     mm_free_pages(task->tss.esp0 - KERNEL_STACK_SIZE_DEFAULT, KERNEL_STACK_SIZE_DEFAULT / MEM_PAGE_SIZE);
+    for (int i = 0; i < TASK_OFILE_NR; i++)
+    {
+        int fd = i;
+        file_t* file  = task->file_table[fd];
+        if(file){
+            task_remove_fd(fd);
+            sys_close(fd);
+        }
+    }
+    
     //remove_task_from_ready_list(task);
     remove_task_from_all_list(task);
     task_free(task);

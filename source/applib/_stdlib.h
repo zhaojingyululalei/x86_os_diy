@@ -17,6 +17,7 @@ typedef struct _syscall_args_t
     int arg5;
 } syscall_args_t;
 
+int sys_call (syscall_args_t * args) ;
 int sleep(int ms);
 int getpid(void);
 void printf_tmp(char *fmt, int arg);

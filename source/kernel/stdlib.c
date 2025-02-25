@@ -11,7 +11,7 @@
 /**
  * 执行系统调用
  */
-static inline int sys_call(syscall_args_t *args)
+int sys_call(syscall_args_t *args)
 {
     // lcalll选择子即可，不需要偏移量
     const unsigned long sys_gate_addr[] = {0, SELECTOR_CALL_GATE};

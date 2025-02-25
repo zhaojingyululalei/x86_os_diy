@@ -69,7 +69,10 @@ static inline int is_make_code(uint8_t key_code) {
 }
 
 static void do_fx_key (int key) {
-    dbg_info("unhandler key\r\n");
+    int index = key - KEY_F1;
+    if (kbd_state.lctrl_press || kbd_state.rctrl_press) {
+        tty_select(index);
+    }
 }
 /**
  * 处理单字符的标准键

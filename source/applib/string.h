@@ -14,7 +14,8 @@ int memcmp (const void * d1, const void * d2, int size);
 void itoa(char * buf, uint32_t num, int base);
 void sprintf(char * buffer, const char * fmt, ...);
 void vsprintf(char * buffer, const char * fmt, va_list args);
-
+char* strchr(const char *str, int c) ;
+char* strtok(char *str, const char *delim) ;
 
 
 #endif

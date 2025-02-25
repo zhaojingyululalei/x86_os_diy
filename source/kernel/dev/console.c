@@ -309,8 +309,6 @@ static void clear_esc_param (console_t * console) {
  * 写入以ESC开头的序列
  */
 static void write_esc (console_t * console, char c) {
-    // https://blog.csdn.net/ScilogyHunter/article/details/106874395
-    // ESC状态处理, 转义序列模式 ESC 0x20-0x27(0或多个) 0x30-0x7e
     switch (c) {
         case '7':		// ESC 7 保存光标
             save_cursor(console);
@@ -456,7 +454,7 @@ static void write_esc_square (console_t * console, char c) {
  * 可能有多个进程在写，注意保护
  */
 int console_write (tty_t * tty) {
-	console_t * console = console_buf + tty->console_idx;
+	console_t * console = console_buf + tty->console_index;
 
     // 下面的写序列涉及到状态机，还有多进程同时写，因此加上锁
     sys_mutex_lock(&console->mutex);
@@ -466,11 +464,11 @@ int console_write (tty_t * tty) {
         char c;
 
         // 取字节数据
-        int err = tty_fifo_get(&tty->ofifo, &c);
+        int err = get_char_from_fifo(&tty->output_fifo, &c);
         if (err < 0) {
             break;
         }
-        sys_sem_notify(&tty->osem);
+        sys_sem_notify(&tty->output_semaphore);
 
         // 显示出来
         switch (console->write_state) {

@@ -51,7 +51,11 @@ void file_inc_ref (file_t * file) {
 	file->ref++;
     sys_mutex_unlock(&file_alloc_mutex);
 }
-
+void file_desc_ref (file_t * file){
+    sys_mutex_lock(&file_alloc_mutex);
+	file->ref--;
+    sys_mutex_unlock(&file_alloc_mutex);
+}
 /**
  * @brief 文件表初始化
  */
